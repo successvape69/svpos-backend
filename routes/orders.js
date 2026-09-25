@@ -2,11 +2,21 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Customer = require('../models/Customer');
+const Product = require('../models/Product');
 
 // Create order (POS atau web)
 router.post('/orders', async (req, res) => {
   try {
     const { customerId, items, totalAmount, source } = req.body;
+    
+    // Check and update stock
+    for (const item of items) {
+      const prod = await Product.findById(item.productId);
+      if (!prod || prod.stock < item.quantity) {
+        return res.status(400).json({ error: `Stok ${prod ? prod.name : 'produk'} tidak cukup` });
+      }
+    }
+
     const order = new Order({
       orderId: `ORD-${Date.now()}`,
       customerId: customerId || null,
@@ -17,6 +27,11 @@ router.post('/orders', async (req, res) => {
       orderStatus: 'pending'
     });
     await order.save();
+
+    // Decrement stock
+    for (const item of items) {
+      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
+    }
 
     // Update customer stats kalo ada
     if (customerId) {
