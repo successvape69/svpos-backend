@@ -15,6 +15,7 @@ mongoose.connect(process.env.MONGO_URI)
 // Routes
 const orderRoutes = require('./routes/orders');
 const customerRoutes = require('./routes/customers');
+const productRoutes = require('./routes/products');
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Backend live' });
@@ -22,6 +23,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', orderRoutes);
 app.use('/api', customerRoutes);
+app.use('/api', productRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running port ${PORT}`));
