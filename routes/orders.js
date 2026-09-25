@@ -75,15 +75,23 @@ router.get('/orders/:orderId', async (req, res) => {
   }
 });
 
-// Update order status (POS staff confirm/complete)
+// Update order status (POS staff confirm/complete) — restores stock on cancel
 router.patch('/orders/:orderId', async (req, res) => {
   try {
     const { orderStatus, paymentStatus } = req.body;
-    const order = await Order.findOneAndUpdate(
-      { orderId: req.params.orderId },
-      { orderStatus, paymentStatus, updatedAt: new Date() },
-      { new: true }
-    );
+    const prev = await Order.findOne({ orderId: req.params.orderId });
+    if (!prev) return res.status(404).json({ error: 'Order not found' });
+    const wasCancelled = prev.orderStatus === 'cancelled';
+    const nowCancelled = orderStatus === 'cancelled' && !wasCancelled;
+    if (nowCancelled) {
+      for (const item of prev.items) {
+        try { await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } }); } catch(_e){}
+      }
+    }
+    const update = { updatedAt: new Date() };
+    if (orderStatus) update.orderStatus = orderStatus;
+    if (paymentStatus) update.paymentStatus = paymentStatus;
+    const order = await Order.findOneAndUpdate({ orderId: req.params.orderId }, update, { new: true });
     res.json(order);
   } catch (err) {
     res.status(500).json({ error: err.message });

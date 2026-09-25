@@ -17,12 +17,17 @@ mongoose.connect(process.env.MONGO_URI)
 const orderRoutes = require('./routes/orders');
 const customerRoutes = require('./routes/customers');
 const productRoutes = require('./routes/products');
+const authRoutes = require('./routes/auth');
+const midtransRoutes = require('./routes/midtrans');
+const authMiddleware = require('./middleware/auth');
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Backend live' });
 });
 
-app.use('/api', orderRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/midtrans', midtransRoutes);
+app.use('/api', authMiddleware, orderRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', productRoutes);
 
