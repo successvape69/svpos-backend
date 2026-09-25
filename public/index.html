@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Success Vape — Kasir (API)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          head: ['Manrope','sans-serif'],
+          body: ['Inter','sans-serif'],
+        },
+        colors: {
+          paper: '#F6F4F0',
+          ink: '#1B1F1D',
+          accent: {
+            DEFAULT: '#0F6B5C',
+            soft: '#E3F1EC',
+            dark: '#0B5145',
+          },
+          warn: '#B45309',
+          danger: '#B3261E',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; }
+  body { background: #F6F4F0; color: #1B1F1D; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { background:#14181A; color:#EDEFEE; } }
+  :root[data-theme="dark"] body { background:#14181A; color:#EDEFEE; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .card { background:#fff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card { background:#1C2124; } }
+  :root[data-theme="dark"] .card { background:#1C2124; }
+  ::-webkit-scrollbar { height:6px; width:6px; }
+  ::-webkit-scrollbar-thumb { background:#0000001f; border-radius:99px; }
+  .navbtn { transition: color .15s ease, background-color .15s ease; }
+  .prodcard { transition: transform .1s ease, box-shadow .15s ease; }
+  .prodcard:active { transform: scale(0.97); }
+  @media print {
+    body * { visibility: hidden; }
+    #receiptPrintArea, #receiptPrintArea * { visibility: visible; }
+    #receiptPrintArea { position: absolute; left:0; top:0; width: 300px; }
+  }
+</style>
+</head>
+<body class="font-body">
+
+<div id="app" class="min-h-screen flex flex-col max-w-5xl mx-auto">
+  <!-- Login Screen -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-accent/10 to-transparent">
+    <div class="card rounded-2xl p-6 w-full max-w-sm shadow-lg">
+      <div class="text-center mb-6">
+        <div class="font-head font-extrabold text-2xl mb-1">Success Vape</div>
+        <div class="text-sm text-ink/50">POS System (API Mode)</div>
+      </div>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="text-sm font-medium block mb-1">Username</label>
+          <input id="loginUsername" type="text" placeholder="admin" class="w-full border rounded-lg px-3 py-2.5 text-sm" value="admin">
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Password</label>
+          <input id="loginPassword" type="password" placeholder="••••••••" class="w-full border rounded-lg px-3 py-2.5 text-sm" value="admin123">
+        </div>
+        <button type="submit" class="w-full bg-accent text-white font-medium rounded-lg py-2.5 text-sm">Masuk</button>
+      </form>
+      <div id="loginError" class="text-sm text-danger mt-3 text-center hidden"></div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="mainApp" class="hidden flex flex-col min-h-screen">
+    <header class="px-4 pt-4 pb-3 flex items-center justify-between border-b border-black/5">
+      <div>
+        <div class="font-head font-extrabold text-lg tracking-tight">Success Vape</div>
+        <div id="dbStatus" class="text-xs text-ink/50 dark:text-white/40">API Mode</div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div id="userInfo" class="text-right">
+          <div class="text-xs text-ink/50">User</div>
+          <div id="currentUser" class="font-medium text-sm">—</div>
+        </div>
+        <button id="btnLogout" class="text-xs px-2.5 py-1.5 rounded-lg border border-black/10 text-ink/60">Logout</button>
+      </div>
+    </header>
+
+    <nav class="px-2 border-b border-black/5 overflow-x-auto">
+      <div class="flex gap-1 w-max px-2">
+        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 text-accent border-accent" data-tab="kasir">Kasir</button>
+        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="products">Produk</button>
+        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="orders">Riwayat Order</button>
+        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="customers">Pelanggan</button>
+      </div>
+    </nav>
+
+    <main class="flex-1 px-4 py-4 pb-24">
+      <section id="view-kasir"></section>
+      <section id="view-products" class="hidden"></section>
+      <section id="view-orders" class="hidden"></section>
+      <section id="view-customers" class="hidden"></section>
+    </main>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="receiptPrintArea" class="hidden font-body text-black"></div>
+
+<script>
+// Relative API path works both local & production
+const API_BASE = '/api';
+
+const IDR = n => new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR', maximumFractionDigits:0}).format(Math.round(n||0));
+const fmtDate = ts => new Date(ts).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
+const uid = () => Math.random().toString(36).slice(2,10);
+
+function toast(msg, kind='ok'){
+  const el = document.createElement('div');
+  el.className = 'fixed left-1/2 -translate-x-1/2 bottom-24 z-50 px-4 py-2 rounded-full text-sm font-medium shadow-lg ' +
+    (kind==='error' ? 'bg-danger text-white' : 'bg-ink text-white');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 1800);
+}
+
+function modal(innerHtml, {wide=false} = {}){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" id="modalOverlay">
+      <div class="card w-full ${wide ? 'sm:max-w-lg':'sm:max-w-md'} rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        ${innerHtml}
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML = ''; }
+
+let currentUser = null;
+let customers = [];
+let orders = [];
+let selectedCustomer = null;
+let cart = {};
+let activeTab = 'kasir';
+
+// ponytail: mock products only as offline fallback until inventory is loaded
+let products = {
+  'p1': {id:'p1', name:'Vape Juice 30ml', price:50000, stock:20},
+  'p2': {id:'p2', name:'Coil Pack', price:35000, stock:15},
+  'p3': {id:'p3', name:'Pod System', price:150000, stock:5},
+  'p4': {id:'p4', name:'Battery 18650', price:45000, stock:30},
+};
+
+async function apiCall(endpoint, options = {}){
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options.headers }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e){
+    console.error('API error:', e);
+    toast('Koneksi API gagal','error');
+    throw e;
+  }
+}
+
+async function loadCustomers(){
+  try {
+    const data = await apiCall('/customers');
+    customers = data;
+  } catch(e){ customers = []; }
+}
+
+async function loadOrders(){
+  try {
+    const data = await apiCall('/orders');
+    orders = data;
+  } catch(e){ orders = []; }
+}
+
+async function loadProducts(){
+  try {
+    const data = await apiCall('/products');
+    products = {};
+    data.forEach(p => {
+      products[p._id] = { id: p._id, name: p.name, price: p.price, stock: p.stock };
+    });
+  } catch(e){ toast('Gagal memuat produk', 'error'); }
+}
+
+document.getElementById('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+   
+  // ponytail: mock login — replace with POST /api/auth/login when backend adds auth
+  if (username === 'admin' && password === 'admin123'){
+    currentUser = { username: 'admin' };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    await loadCustomers();
+    await loadOrders();
+    await loadProducts();
+    render();
+  } else {
+    toast('Login gagal','error');
+  }
+};
+
+document.getElementById('btnLogout').onclick = () => {
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  location.reload();
+};
+
+document.querySelectorAll('.tabbtn').forEach(b => {
+  b.onclick = () => {
+    activeTab = b.dataset.tab;
+    document.querySelectorAll('.tabbtn').forEach(x => {
+      x.classList.remove('text-accent','border-accent');
+      x.classList.add('text-ink/50','border-transparent');
+    });
+    b.classList.add('text-accent','border-accent');
+    b.classList.remove('text-ink/50','border-transparent');
+    render();
+  };
+});
+
+function render(){
+  if (!currentUser) return;
+  document.getElementById('currentUser').textContent = currentUser.username;
+  
+  document.querySelectorAll('main section').forEach(s=> s.classList.add('hidden'));
+  
+  if (activeTab === 'kasir'){
+    document.getElementById('view-kasir').classList.remove('hidden');
+    renderKasir();
+  } else if (activeTab === 'products'){
+    document.getElementById('view-products').classList.remove('hidden');
+    renderProducts();
+  } else if (activeTab === 'orders'){
+    document.getElementById('view-orders').classList.remove('hidden');
+    renderOrders();
+  } else if (activeTab === 'customers'){
+    document.getElementById('view-customers').classList.remove('hidden');
+    renderCustomers();
+  }
+}
+
+function renderKasir(){
+  const el = document.getElementById('view-kasir');
+  const items = Object.values(products);
+  const cartItems = Object.entries(cart).filter(([id,qty])=>qty>0);
+  const total = cartItems.reduce((s,[id,qty])=> s + (products[id]?.price||0)*qty, 0);
+
+  el.innerHTML = `
+    <div class="mb-3 flex gap-2">
+      <input id="kasirSearch" type="text" placeholder="Cari produk…" class="flex-1 border rounded-lg px-3 py-2.5 text-sm">
+      <button id="btnSelectCustomer" class="bg-accent text-white text-sm font-medium rounded-lg px-3 py-2">👤 ${selectedCustomer ? customers.find(c=>c._id===selectedCustomer)?.name : 'Pilih Pelanggan'}</button>
+    </div>
+    <div id="kasirGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-28"></div>
+  `;
+
+  document.getElementById('btnSelectCustomer').onclick = openSelectCustomerModal;
+
+  function drawGrid(filter=''){
+    const grid = document.getElementById('kasirGrid');
+    const f = filter.trim().toLowerCase();
+    const list = items.filter(p=> !f || p.name.toLowerCase().includes(f));
+    grid.innerHTML = list.map(p=>`
+      <button data-add="${p.id}" class="prodcard card rounded-xl p-3 text-left border border-black/5 ${((p.stock||0)<=0)?'opacity-40':''}">
+        <div class="text-sm font-semibold leading-snug">${p.name}</div>
+        <div class="text-xs text-ink/40 mt-0.5">Stok ${p.stock||0}</div>
+        <div class="font-head font-bold tabular mt-1.5">${IDR(p.price)}</div>
+      </button>`).join('') || `<div class="col-span-full text-center text-sm text-ink/40 py-10">Belum ada produk.</div>`;
+    grid.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=>{
+      const id = b.dataset.add;
+      const p = products[id];
+      if ((p.stock||0) <= (cart[id]||0)) { toast('Stok tidak cukup','error'); return; }
+      cart[id] = (cart[id]||0)+1;
+      renderKasir();
+    });
+  }
+  drawGrid();
+  document.getElementById('kasirSearch').oninput = (e)=> drawGrid(e.target.value);
+
+  const old = document.getElementById('cartBar'); if (old) old.remove();
+  const bar = document.createElement('div');
+  bar.id = 'cartBar';
+  bar.className = 'fixed left-0 right-0 bottom-0 z-30';
+  bar.innerHTML = `
+    <div class="max-w-5xl mx-auto px-4 pb-4">
+      <div class="card rounded-2xl shadow-xl border border-black/10 p-3">
+        ${cartItems.length ? `
+        <div class="max-h-40 overflow-y-auto mb-2 space-y-1.5">
+          ${cartItems.map(([id,qty])=>{
+            const p = products[id];
+            return `<div class="flex items-center justify-between text-sm">
+              <div class="flex-1 truncate mr-2">${p.name}</div>
+              <div class="flex items-center gap-2">
+                <button data-dec="${id}" class="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10">–</button>
+                <span class="w-5 text-center tabular">${qty}</span>
+                <button data-inc="${id}" class="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10">+</button>
+                <span class="w-20 text-right tabular font-medium">${IDR(p.price*qty)}</span>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>` : `<div class="text-sm text-ink/40 text-center py-3">Keranjang kosong</div>`}
+        <div class="flex items-center justify-between pt-2 border-t border-black/5">
+          <div class="font-head font-bold tabular">${IDR(total)}</div>
+          <button id="btnCheckout" class="bg-accent text-white font-semibold rounded-lg px-5 py-2.5 disabled:opacity-40" ${cartItems.length?'':'disabled'}>Bayar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(bar);
+  bar.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.inc; const p=products[id];
+    if ((p.stock||0) <= (cart[id]||0)) { toast('Stok tidak cukup','error'); return; }
+    cart[id]=(cart[id]||0)+1; renderKasir();
+  });
+  bar.querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.dec; cart[id]=Math.max(0,(cart[id]||0)-1); renderKasir();
+  });
+  document.getElementById('btnCheckout').onclick = doCheckout;
+}
+
+function openSelectCustomerModal(){
+  modal(`
+    <div class="p-5">
+      <div class="font-head font-bold text-lg mb-4">Pilih Pelanggan</div>
+      <button id="btnGuestCheckout" class="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium mb-3">👤 Transaksi Tamu</button>
+      <div class="space-y-2">
+        ${customers.map(cust => `
+          <button data-cust="${cust._id}" class="w-full text-left card rounded-xl p-3 border border-black/5 hover:border-accent">
+            <div class="text-sm font-medium">${cust.name}</div>
+            <div class="text-xs text-ink/40">${cust.phone||'—'}</div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `);
+  document.getElementById('btnGuestCheckout').onclick = ()=>{ selectedCustomer = null; closeModal(); renderKasir(); };
+  document.querySelectorAll('[data-cust]').forEach(b => b.onclick = ()=>{ selectedCustomer = b.dataset.cust; closeModal(); renderKasir(); });
+}
+
+async function doCheckout(){
+  const cartItems = Object.entries(cart).filter(([id,qty])=>qty>0);
+  if (!cartItems.length) return;
+  
+  const items = cartItems.map(([id,qty])=>{
+    const p = products[id];
+    return { productId:id, productName:p.name, price:p.price, quantity:qty, subtotal:p.price*qty };
+  });
+  const total = items.reduce((s,it)=>s+it.subtotal,0);
+  
+  const orderData = {
+    customerId: selectedCustomer,
+    items,
+    totalAmount: total,
+    source: 'pos'
+  };
+
+  try {
+    const result = await apiCall('/orders', { method: 'POST', body: JSON.stringify(orderData) });
+    toast('Order berhasil');
+    cart = {};
+    selectedCustomer = null;
+    await loadOrders();
+    await loadProducts(); // refresh stock
+    showReceipt(result.order);
+    render();
+  } catch(e){
+    toast('Gagal membuat order','error');
+  }
+}
+
+function showReceipt(order){
+  const lines = order.items.map(it=>`${it.productName} x${it.quantity} — ${IDR(it.subtotal)}`).join('\n');
+  const waText = `*Struk Success Vape*\n${new Date(order.createdAt).toLocaleString('id-ID')}\n\n${lines}\n\n*Total: ${IDR(order.totalAmount)}*`;
+  modal(`
+    <div class="p-5">
+      <div id="receiptContent" class="font-body">
+        <div class="text-center mb-3">
+          <div class="font-head font-extrabold">Success Vape</div>
+          <div class="text-xs text-ink/50">${fmtDate(order.createdAt)}</div>
+          <div class="text-xs text-ink/40">Order: ${order.orderId}</div>
+        </div>
+        <div class="border-t border-dashed border-black/20 my-2"></div>
+        <div class="space-y-1 text-sm">
+          ${order.items.map(it=>`
+            <div class="flex justify-between"><span>${it.productName} x${it.quantity}</span><span class="tabular">${IDR(it.subtotal)}</span></div>
+          `).join('')}
+        </div>
+        <div class="border-t border-dashed border-black/20 my-2"></div>
+        <div class="flex justify-between font-head font-bold"><span>Total</span><span class="tabular">${IDR(order.totalAmount)}</span></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-5">
+        <button id="btnPrint" class="border border-black/10 rounded-lg py-2.5 font-medium text-sm">Cetak</button>
+        <a id="btnWa" target="_blank" href="https://wa.me/?text=${encodeURIComponent(waText)}" class="bg-accent text-white rounded-lg py-2.5 font-medium text-sm text-center">WhatsApp</a>
+      </div>
+      <button id="btnDoneReceipt" class="w-full mt-2 text-sm text-ink/50 py-2">Selesai</button>
+    </div>
+  `);
+  document.getElementById('btnPrint').onclick = ()=>{
+    document.getElementById('receiptPrintArea').innerHTML = document.getElementById('receiptContent').innerHTML;
+    window.print();
+  };
+  document.getElementById('btnDoneReceipt').onclick = closeModal;
+}
+
+function renderOrders(){
+  const el = document.getElementById('view-orders');
+  el.innerHTML = `
+    <div class="mb-3">
+      <div class="font-head font-bold text-lg">Riwayat Order</div>
+      <div class="text-xs text-ink/50">${orders.length} order</div>
+    </div>
+    <div class="space-y-2">
+      ${orders.slice(0, 50).map(o=>`
+        <div class="card rounded-xl p-3 border border-black/5">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-sm font-medium">${o.orderId}</div>
+              <div class="text-xs text-ink/40 mt-0.5">${fmtDate(o.createdAt)} • ${o.items.length} item • ${o.source}</div>
+              <div class="text-xs mt-1">
+                <span class="inline-block px-2 py-0.5 rounded ${o.orderStatus==='completed'?'bg-accent/10 text-accent':'bg-ink/5 text-ink/60'}">${o.orderStatus}</span>
+                <span class="inline-block px-2 py-0.5 rounded ml-1 ${o.paymentStatus==='paid'?'bg-accent/10 text-accent':'bg-warn/10 text-warn'}">${o.paymentStatus}</span>
+              </div>
+            </div>
+            <div class="font-head font-bold tabular">${IDR(o.totalAmount)}</div>
+          </div>
+        </div>
+      `).join('') || `<div class="text-sm text-ink/40 text-center py-10">Belum ada order.</div>`}
+    </div>
+  `;
+}
+
+function renderCustomers(){
+  const el = document.getElementById('view-customers');
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <div class="font-head font-bold text-lg">Pelanggan</div>
+      <button id="btnAddCustomer" class="bg-accent text-white text-sm font-medium rounded-lg px-3 py-2">+ Tambah</button>
+    </div>
+    <div class="space-y-2">
+      ${customers.map(c=>`
+        <div class="card rounded-xl p-3 border border-black/5">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="font-medium text-sm">${c.name}</div>
+              <div class="text-xs text-ink/40 mt-0.5">${c.phone||'—'} • ${c.email||'—'}</div>
+              <div class="text-xs text-ink/50 mt-1">Total: ${IDR(c.totalSpent||0)} • ${c.transactionCount||0}x transaksi</div>
+            </div>
+            <button data-edit="${c._id}" class="text-xs px-2.5 py-1.5 rounded-lg border border-black/10">Edit</button>
+          </div>
+        </div>
+      `).join('') || `<div class="text-sm text-ink/40 text-center py-10">Belum ada pelanggan.</div>`}
+    </div>
+  `;
+  document.getElementById('btnAddCustomer').onclick = () => openCustomerModal();
+  el.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openCustomerModal(b.dataset.edit));
+}
+
+function openCustomerModal(customerId){
+  const cust = customerId ? customers.find(c=>c._id===customerId) : { name: '', phone: '', email: '' };
+  modal(`
+    <div class="p-5">
+      <div class="font-head font-bold text-lg mb-4">${customerId ? 'Edit Pelanggan' : 'Tambah Pelanggan'}</div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm font-medium">Nama</label>
+          <input id="cf_name" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${cust.name||''}">
+        </div>
+        <div>
+          <label class="text-sm font-medium">Telepon</label>
+          <input id="cf_phone" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${cust.phone||''}">
+        </div>
+        <div>
+          <label class="text-sm font-medium">Email</label>
+          <input id="cf_email" type="email" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${cust.email||''}">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <div class="flex-1"></div>
+        <button id="btnCancelCust" class="px-4 py-2.5 text-sm">Batal</button>
+        <button id="btnSaveCust" class="bg-accent text-white rounded-lg px-4 py-2.5 text-sm font-medium">Simpan</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('btnCancelCust').onclick = closeModal;
+  document.getElementById('btnSaveCust').onclick = async () => {
+    const name = document.getElementById('cf_name').value.trim();
+    if (!name) { toast('Nama wajib','error'); return; }
+    const custData = {
+      name,
+      phone: document.getElementById('cf_phone').value.trim(),
+      email: document.getElementById('cf_email').value.trim()
+    };
+    try {
+      if (customerId){
+        await apiCall(`/customers/${customerId}`, { method: 'PATCH', body: JSON.stringify(custData) });
+      } else {
+        await apiCall('/customers', { method: 'POST', body: JSON.stringify(custData) });
+      }
+      await loadCustomers();
+      closeModal();
+      toast('Customer disimpan');
+      render();
+    } catch(e){
+      toast('Gagal menyimpan','error');
+    }
+  };
+}
+
+function renderProducts(){
+  const el = document.getElementById('view-products');
+  const items = Object.values(products);
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <div class="font-head font-bold text-lg">Kelola Produk</div>
+      <button id="btnAddProduct" class="bg-accent text-white text-sm font-medium rounded-lg px-3 py-2">+ Tambah</button>
+    </div>
+    <div class="space-y-2">
+      ${items.map(p=>`
+        <div class="card rounded-xl p-3 border border-black/5">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="font-medium text-sm">${p.name}</div>
+              <div class="text-xs text-ink/40 mt-0.5">${IDR(p.price)} • Stok ${p.stock||0}</div>
+            </div>
+            <button data-edit-prod="${p.id}" class="text-xs px-2.5 py-1.5 rounded-lg border border-black/10">Edit</button>
+          </div>
+        </div>
+      `).join('') || `<div class="text-sm text-ink/40 text-center py-10">Belum ada produk.</div>`}
+    </div>
+  `;
+  document.getElementById('btnAddProduct').onclick = () => openProductModal();
+  el.querySelectorAll('[data-edit-prod]').forEach(b => b.onclick = () => openProductModal(b.dataset.editProd));
+}
+
+function openProductModal(productId){
+  const prod = productId ? products[productId] : { name: '', price: 0, stock: 0 };
+  modal(`
+    <div class="p-5">
+      <div class="font-head font-bold text-lg mb-4">${productId ? 'Edit Produk' : 'Tambah Produk'}</div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm font-medium">Nama</label>
+          <input id="pf_name" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${prod.name||''}">
+        </div>
+        <div>
+          <label class="text-sm font-medium">Harga</label>
+          <input id="pf_price" type="number" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${prod.price||0}">
+        </div>
+        <div>
+          <label class="text-sm font-medium">Stok</label>
+          <input id="pf_stock" type="number" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${prod.stock||0}">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <div class="flex-1"></div>
+        <button id="btnCancelProd" class="px-4 py-2.5 text-sm">Batal</button>
+        <button id="btnSaveProd" class="bg-accent text-white rounded-lg px-4 py-2.5 text-sm font-medium">Simpan</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('btnCancelProd').onclick = closeModal;
+  document.getElementById('btnSaveProd').onclick = async () => {
+    const name = document.getElementById('pf_name').value.trim();
+    if (!name) { toast('Nama wajib','error'); return; }
+    const prodData = {
+      name,
+      price: parseInt(document.getElementById('pf_price').value) || 0,
+      stock: parseInt(document.getElementById('pf_stock').value) || 0
+    };
+    try {
+      if (productId){
+        await apiCall(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify(prodData) });
+      } else {
+        await apiCall('/products', { method: 'POST', body: JSON.stringify(prodData) });
+      }
+      await loadProducts();
+      closeModal();
+      toast('Produk disimpan');
+      render();
+    } catch(e){
+      toast('Gagal menyimpan','error');
+    }
+  };
+}
+
+// Auto-login if session exists
+const stored = localStorage.getItem('currentUser');
+if (stored){
+  currentUser = JSON.parse(stored);
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  loadCustomers().then(()=> loadOrders()).then(()=> loadProducts()).then(()=> render());
+}
+</script>
+</body>
+</html>
