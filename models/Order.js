@@ -8,7 +8,8 @@ const OrderSchema = new mongoose.Schema({
       productId: String,
       productName: String,
       quantity: Number,
-      price: Number,
+      price: Number, // harga jual
+      purchasePrice: { type: Number, default: 0 }, // snapshot HPP saat jual
       subtotal: Number
     }
   ],

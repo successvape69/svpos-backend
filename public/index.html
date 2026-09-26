@@ -1167,27 +1167,35 @@ async function renderFinance(){
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
-        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Modal Awal</div>
-        <div class="font-head font-extrabold text-xl tabular">${IDR(data.capital)}</div>
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Kas Tersedia (bisa restock)</div>
+        <div class="font-head font-extrabold text-xl tabular ${data.availableFunds >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.availableFunds)}</div>
+        <div class="text-[10px] text-white/30 mt-1">Modal+Omzet-Restock-Operasional</div>
       </div>
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
-        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Total Omzet</div>
-        <div class="font-head font-extrabold text-xl tabular text-accent">${IDR(data.totalSales)}</div>
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Omzet</div>
+        <div class="font-head font-extrabold text-xl tabular">${IDR(data.totalSales)}</div>
+        <div class="text-[10px] text-white/30 mt-1">HPP ${IDR(data.totalHPP)}</div>
       </div>
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
-        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Total Restock (Beli)</div>
-        <div class="font-head font-extrabold text-xl tabular text-danger">- ${IDR(data.restocks)}</div>
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Laba Kotor</div>
+        <div class="font-head font-extrabold text-xl tabular ${data.grossProfit >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.grossProfit)}</div>
+        <div class="text-[10px] text-white/30 mt-1">Omzet - HPP${data.totalDiscount ? ` - disc ${IDR(data.totalDiscount)} sudah di omzet` : ''}</div>
       </div>
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
-        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Pengeluaran Lain</div>
-        <div class="font-head font-extrabold text-xl tabular text-warn">- ${IDR(data.expenses)}</div>
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Laba Bersih</div>
+        <div class="font-head font-extrabold text-xl tabular ${data.netProfit >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.netProfit)}</div>
+        <div class="text-[10px] text-white/30 mt-1">Kotor - Operasional ${IDR(data.expenses)}</div>
       </div>
     </div>
 
-    <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5 mb-6 text-center">
-      <div class="text-sm text-white/50 font-medium">Sisa Modal Bisa Dibelanjakan (Restock)</div>
-      <div class="font-head font-extrabold text-4xl tabular mt-2 ${data.availableFunds >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.availableFunds)}</div>
-      <div class="text-xs text-white/30 mt-1">(Modal + Omzet) - (Restock + Pengeluaran)</div>
+    <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5 mb-6">
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div class="flex justify-between"><span class="text-white/50">Modal Awal</span><span class="tabular font-bold">${IDR(data.capital)}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">Total Restock (modal keluar)</span><span class="tabular font-bold">${IDR(data.restocks)}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">Laba Ditahan</span><span class="tabular font-bold ${data.retainedEarnings >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.retainedEarnings)}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">Tersedia = Kas</span><span class="tabular font-bold">${IDR(data.availableFunds)}</span></div>
+      </div>
+      <div class="text-[11px] text-white/30 mt-3">Biaya operasional (sewa/listrik) mengurangi <b>Laba</b>, bukan Modal. Modal hanya berkurang saat Restock / tambah saat setor Modal.</div>
     </div>
 
     <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5">

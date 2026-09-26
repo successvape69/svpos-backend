@@ -13,7 +13,7 @@ router.post('/orders', async (req, res) => {
       return res.status(400).json({ error: 'items wajib diisi' });
     }
 
-    // Enrich items dari DB (isi price/subtotal bila tak dikirim frontend) + validasi stok
+    // Enrich items dari DB (isi price/subtotal bila tak dikirim frontend) + validasi stok + isi purchasePrice snapshot
     const enriched = [];
     for (const item of items) {
       const prod = await Product.findById(item.productId);
@@ -22,12 +22,14 @@ router.post('/orders', async (req, res) => {
         return res.status(400).json({ error: `Stok ${prod.name} tidak cukup` });
       }
       const price = Number(item.price ?? prod.price);
+      const purchasePrice = Number(prod.purchasePrice || 0);
       const quantity = Number(item.quantity);
       const subtotal = price * quantity;
       enriched.push({
         productId: String(prod._id),
         productName: item.productName || prod.name,
         price,
+        purchasePrice,
         quantity,
         subtotal
       });
