@@ -54,8 +54,8 @@ router.post('/users', authMiddleware, async (req, res) => {
   }
 });
 
-// PATCH /:id — admin only (ubah role atau password)
-router.patch('/:id', authMiddleware, async (req, res) => {
+// PATCH /users/:id — admin only (ubah role atau password)
+router.patch('/users/:id', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak' });
   try {
     const update = {};
@@ -69,8 +69,8 @@ router.patch('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// DELETE /:id — admin only
-router.delete('/:id', authMiddleware, async (req, res) => {
+// DELETE /users/:id — admin only
+router.delete('/users/:id', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak' });
   try {
     if (req.user.id === req.params.id) return res.status(400).json({ error: 'Tidak bisa hapus akun sendiri' });
