@@ -68,6 +68,7 @@
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="reports" title="Laporan">📈</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="finance" title="Keuangan & Modal">💰</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="orders" title="Order">📜</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="shifts" title="Shift Kasir">⏰</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="customers" title="Customer">👥</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="users" title="Users">👤</button>
     </div>
@@ -120,6 +121,7 @@
         <section id="view-reports" class="hidden"></section>
         <section id="view-finance" class="hidden"></section>
         <section id="view-orders" class="hidden"></section>
+        <section id="view-shifts" class="hidden"></section>
         <section id="view-customers" class="hidden"></section>
         <section id="view-users" class="hidden"></section>
       </main>
@@ -286,7 +288,7 @@ function render(){
   });
 
   // Update view title
-  const tabNames = { dashboard:'Dashboard', kasir:'Kasir', products:'Produk', opname:'Stock Opname', reports:'Laporan', finance:'Keuangan', users:'Users', orders:'Order', customers:'Pelanggan' };
+  const tabNames = { dashboard:'Dashboard', kasir:'Kasir', products:'Produk', opname:'Stock Opname', reports:'Laporan', finance:'Keuangan', users:'Users', orders:'Order', shifts:'Shift Kasir', customers:'Pelanggan' };
   document.getElementById('viewTitle').textContent = tabNames[activeTab] || activeTab;
 
   // Jika aktif di tab yang disembunyikan, fallback ke dashboard
@@ -298,7 +300,7 @@ function render(){
   const views = {
     dashboard: 'view-dashboard', kasir: 'view-kasir', products: 'view-products',
     opname: 'view-opname', reports: 'view-reports', finance: 'view-finance', users: 'view-users',
-    orders: 'view-orders', customers: 'view-customers'
+    orders: 'view-orders', shifts: 'view-shifts', customers: 'view-customers'
   };
   if (views[activeTab]) document.getElementById(views[activeTab]).classList.remove('hidden');
 
@@ -310,6 +312,7 @@ function render(){
   else if (activeTab === 'finance') renderFinance();
   else if (activeTab === 'users') renderUsers();
   else if (activeTab === 'orders') renderOrders();
+  else if (activeTab === 'shifts') renderShifts();
   else if (activeTab === 'customers') renderCustomers();
 }
 
@@ -869,6 +872,166 @@ function renderOrders(){
       renderOrders();
     } catch(e){ toast(e.message || 'Gagal retur','error'); }
   });
+}
+
+// ===================== SHIFT KASIR =====================
+let currentShift = null;
+
+async function loadCurrentShift() {
+  try {
+    const res = await apiCall('/shifts/current');
+    currentShift = res.shift;
+  } catch(e) { currentShift = null; }
+}
+
+async function renderShifts() {
+  await loadCurrentShift();
+  const el = document.getElementById('view-shifts');
+  let shiftsList = [];
+  try { shiftsList = await apiCall('/shifts'); } catch(e) { shiftsList = []; }
+
+  el.innerHTML = `
+    <div class="mb-6">
+      <div class="font-head font-bold text-xl">Shift & Sesi Kasir</div>
+      <div class="text-xs text-white/40">Buka shift saat mulai tugas, tutup shift saat selesaikan tugas</div>
+    </div>
+
+    <!-- Active Shift Card -->
+    <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-6 border-white/5 mb-6">
+      ${currentShift ? `
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-accent animate-ping"></span>
+              <span class="text-xs text-accent font-bold uppercase tracking-wider">Shift Aktif</span>
+            </div>
+            <div class="font-head font-extrabold text-2xl">${currentShift.cashierName}</div>
+            <div class="text-xs text-white/40 mt-1">Dibuka: ${fmtDate(currentShift.openedAt)} • Kas Awal: <b class="text-white">${IDR(currentShift.openedCash)}</b></div>
+          </div>
+          <button id="btnCloseShift" class="bg-danger text-white font-bold text-xs rounded-xl px-6 py-3.5 shadow-lg shadow-danger/20">TUTUP SHIFT SEKARANG</button>
+        </div>
+      ` : `
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="text-xs text-warn font-bold uppercase tracking-wider mb-1">Status: Tidak Ada Shift Aktif</div>
+            <div class="font-head font-bold text-lg">Kamu belum membuka shift kasir</div>
+            <div class="text-xs text-white/40 mt-1">Masukkan modal kas awal untuk mulai mencatat penjualan shift ini</div>
+          </div>
+          <button id="btnOpenShift" class="bg-accent text-black font-bold text-xs rounded-xl px-6 py-3.5 shadow-lg shadow-accent/20">+ BUAT / BUKA SHIFT BARU</button>
+        </div>
+      `}
+    </div>
+
+    <!-- Shift History -->
+    <div class="card rounded-2xl p-5 border-white/5">
+      <div class="font-head font-bold text-base mb-4">Riwayat Shift Kasir</div>
+      <div class="space-y-3">
+        ${shiftsList.length ? shiftsList.map(s => {
+          const isClosed = s.status === 'closed';
+          const selisih = isClosed ? (s.closedCash - s.expectedCash) : 0;
+          return `
+            <div class="bg-dark-800 rounded-xl p-4 border border-white/5">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+                <div>
+                  <div class="font-bold text-sm flex items-center gap-2">
+                    <span>${s.cashierName}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${isClosed ? 'bg-white/10 text-white/60' : 'bg-accent/20 text-accent'}">${s.status.toUpperCase()}</span>
+                  </div>
+                  <div class="text-xs text-white/40 mt-0.5">${fmtDate(s.openedAt)} ${s.closedAt ? '— ' + fmtDate(s.closedAt) : ''}</div>
+                </div>
+                ${isClosed ? `
+                  <div class="text-right">
+                    <div class="text-xs text-white/40">Selisih Kas Fisik</div>
+                    <div class="font-bold tabular ${selisih===0 ? 'text-accent' : selisih>0 ? 'text-warn' : 'text-danger'}">
+                      ${selisih === 0 ? '✓ Sesuai (0)' : (selisih > 0 ? '+' : '') + IDR(selisih)}
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+
+              ${isClosed ? `
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-white/5 text-xs">
+                  <div><div class="text-white/40">Kas Awal</div><div class="font-medium tabular">${IDR(s.openedCash)}</div></div>
+                  <div><div class="text-white/40">Penjualan Shift</div><div class="font-medium tabular text-accent">${IDR(s.totalSales)} (${s.totalOrders} order)</div></div>
+                  <div><div class="text-white/40">Kas Diharapkan</div><div class="font-medium tabular">${IDR(s.expectedCash)}</div></div>
+                  <div><div class="text-white/40">Kas Hitung Fisik</div><div class="font-bold tabular">${IDR(s.closedCash)}</div></div>
+                </div>
+                ${s.notes ? `<div class="text-xs text-white/40 mt-2 bg-dark-900/50 p-2 rounded-lg italic">Note: ${s.notes}</div>` : ''}
+              ` : ''}
+            </div>
+          `;
+        }).join('') : `<div class="text-sm text-white/30 text-center py-10">Belum ada riwayat shift.</div>`}
+      </div>
+    </div>
+  `;
+
+  const btnOpen = document.getElementById('btnOpenShift');
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      modal(`
+        <div class="p-5">
+          <div class="font-head font-bold text-lg mb-1">Buka Shift Kasir</div>
+          <div class="text-xs text-white/40 mb-4">Masukkan modal uang tunai di laci kasir saat ini</div>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-white/50">Modal Kas Awal (Rp)</label>
+              <input id="openedCashInput" type="number" placeholder="500000" class="w-full bg-dark-800 border border-white/10 rounded-xl px-4 py-3 mt-1 text-sm outline-none focus:border-accent tabular">
+            </div>
+          </div>
+          <button id="btnSubmitOpen" class="w-full mt-5 bg-accent text-black font-bold rounded-xl py-3.5 text-sm shadow-lg shadow-accent/20">Buka Shift</button>
+          <button id="btnCancelOpen" class="w-full mt-2 text-xs text-white/40 py-2">Batal</button>
+        </div>
+      `);
+      document.getElementById('btnCancelOpen').onclick = closeModal;
+      document.getElementById('btnSubmitOpen').onclick = async () => {
+        const cash = Number(document.getElementById('openedCashInput').value || 0);
+        try {
+          await apiCall('/shifts/open', { method: 'POST', body: JSON.stringify({ openedCash: cash }) });
+          toast('Shift kasir berhasil dibuka');
+          closeModal();
+          render();
+        } catch(e) { toast(e.message || 'Gagal buka shift', 'error'); }
+      };
+    };
+  }
+
+  const btnClose = document.getElementById('btnCloseShift');
+  if (btnClose) {
+    btnClose.onclick = () => {
+      modal(`
+        <div class="p-5">
+          <div class="font-head font-bold text-lg mb-1">Tutup Shift Kasir</div>
+          <div class="text-xs text-white/40 mb-4">Hitung total uang fisik di laci kasir & masukkan nominalnya</div>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-white/50">Total Uang Fisik Kasir (Rp)</label>
+              <input id="closedCashInput" type="number" placeholder="0" class="w-full bg-dark-800 border border-white/10 rounded-xl px-4 py-3 mt-1 text-sm outline-none focus:border-accent tabular">
+            </div>
+            <div>
+              <label class="text-xs text-white/50">Catatan / Keterangan (opsional)</label>
+              <textarea id="closeNotesInput" placeholder="Misal: ada selisih kembalian 2rb" class="w-full bg-dark-800 border border-white/10 rounded-xl px-4 py-3 mt-1 text-sm outline-none focus:border-accent h-20"></textarea>
+            </div>
+          </div>
+          <button id="btnSubmitClose" class="w-full mt-5 bg-danger text-white font-bold rounded-xl py-3.5 text-sm shadow-lg shadow-danger/20">Tutup Shift & Simpan Laporan</button>
+          <button id="btnCancelClose" class="w-full mt-2 text-xs text-white/40 py-2">Batal</button>
+        </div>
+      `);
+      document.getElementById('btnCancelClose').onclick = closeModal;
+      document.getElementById('btnSubmitClose').onclick = async () => {
+        const cash = Number(document.getElementById('closedCashInput').value || 0);
+        const notes = document.getElementById('closeNotesInput').value.trim();
+        try {
+          const res = await apiCall(`/shifts/close/${currentShift._id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ closedCash: cash, notes })
+          });
+          closeModal();
+          toast(`Shift ditutup. Selisih: ${IDR(res.variance)}`);
+          render();
+        } catch(e) { toast(e.message || 'Gagal tutup shift', 'error'); }
+      };
+    };
+  }
 }
 
 // ===================== CUSTOMERS =====================

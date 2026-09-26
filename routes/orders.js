@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
+const Shift = require('../models/Shift');
 const authMiddleware = require('../middleware/auth');
 
 // Rumus reward: 1 poin per Rp 10.000 belanja (lunas)
@@ -46,6 +47,18 @@ router.post('/orders', async (req, res) => {
     const disc = Math.min(Math.max(Number(discount) || 0, 0), 100); // clamp 0-100
     const totalAmount = Math.round(originalTotal * (1 - disc / 100));
 
+    // Auto-detect shift aktif kalau ada Authorization header
+    let shiftId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'svpos_secret');
+        const openShift = await Shift.findOne({ cashierId: decoded._id || decoded.id, status: 'open' });
+        if (openShift) shiftId = openShift._id;
+      } catch(e) { /* no shift, skip */ }
+    }
+
     const order = new Order({
       orderId: `ORD-${Date.now()}`,
       customerId: customerId || null,
@@ -56,7 +69,8 @@ router.post('/orders', async (req, res) => {
       source: source || 'pos',
       paymentStatus: validPay,
       orderStatus: validOrd,
-      progress: validProg
+      progress: validProg,
+      shiftId
     });
     await order.save();
 

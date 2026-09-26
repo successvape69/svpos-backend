@@ -20,6 +20,7 @@ const OrderSchema = new mongoose.Schema({
   orderStatus: { type: String, enum: ['pending', 'confirmed', 'completed', 'cancelled', 'returned'], default: 'pending' },
   progress: { type: String, enum: ['antri', 'proses', 'selesai', 'diambil'], default: 'antri' },
   source: { type: String, enum: ['pos', 'web'], default: 'pos' }, // POS atau web order
+  shiftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift', default: null }, // shift aktif saat order dibuat
   midtransOrderId: { type: String },
   midtransTransactionId: { type: String },
   midtransPaymentType: { type: String },

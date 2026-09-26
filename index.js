@@ -22,6 +22,8 @@ const midtransRoutes = require('./routes/midtrans');
 const stockOpnameRoutes = require('./routes/stockOpname');
 const reportRoutes = require('./routes/reports');
 const cashflowRoutes = require('./routes/cashflow');
+const backupRoutes = require('./routes/backup');
+const shiftRoutes = require('./routes/shifts');
 const authMiddleware = require('./middleware/auth');
 
 app.get('/api/health', (req, res) => {
@@ -33,6 +35,8 @@ app.use('/api/midtrans', midtransRoutes);
 app.use('/api', stockOpnameRoutes);
 app.use('/api', reportRoutes);
 app.use('/api', cashflowRoutes);
+app.use('/api', backupRoutes);
+app.use('/api', shiftRoutes);
 app.use('/api', orderRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', productRoutes);
