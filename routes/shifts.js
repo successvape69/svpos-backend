@@ -16,7 +16,7 @@ router.get('/shifts', authMiddleware, async (req, res) => {
   }
 });
 
-// Get current open shift for logged-in cashier
+// Get current open shift for logged-in cashier (before /:id)
 router.get('/shifts/current', authMiddleware, async (req, res) => {
   try {
     const shift = await Shift.findOne({ cashierId: req.user._id, status: 'open' });
@@ -27,7 +27,8 @@ router.get('/shifts/current', authMiddleware, async (req, res) => {
   }
 });
 
-// Open shift
+// Open shift (before /:id)
+
 router.post('/shifts/open', authMiddleware, async (req, res) => {
   try {
     const existing = await Shift.findOne({ cashierId: req.user._id, status: 'open' });
@@ -110,10 +111,12 @@ router.patch('/shifts/close/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Shift report detail
+// Shift report detail — strict ObjectId only to avoid conflict with /shifts/current/open
 router.get('/shifts/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) return res.status(400).json({ error: 'Invalid shift id' });
   try {
-    const shift = await Shift.findById(req.params.id);
+    const shift = await Shift.findById(id);
     if (!shift) return res.status(404).json({ error: 'Shift tidak ditemukan' });
     res.json({ shift });
   } catch (err) {
