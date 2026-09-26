@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /auth/users — admin only
+// GET /users — admin only
 router.get('/users', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak' });
   try {
@@ -39,7 +39,7 @@ router.get('/users', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /auth/users — admin only (tambah user baru)
+// POST /users — admin only (tambah user baru)
 router.post('/users', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak' });
   try {
