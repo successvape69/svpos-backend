@@ -281,16 +281,16 @@ function render(){
 
   // Sembunyiin tab admin-only untuk kasir
   document.querySelectorAll('.tabbtn').forEach(btn => {
-    const adminOnly = ['opname','reports','users'].includes(btn.dataset.tab);
+    const adminOnly = ['opname','reports','finance','users'].includes(btn.dataset.tab);
     btn.classList.toggle('hidden', adminOnly && !isAdmin);
   });
 
   // Update view title
-  const tabNames = { dashboard:'Dashboard', kasir:'Kasir', products:'Produk', opname:'Stock Opname', reports:'Laporan', users:'Users', orders:'Order', customers:'Pelanggan' };
+  const tabNames = { dashboard:'Dashboard', kasir:'Kasir', products:'Produk', opname:'Stock Opname', reports:'Laporan', finance:'Keuangan', users:'Users', orders:'Order', customers:'Pelanggan' };
   document.getElementById('viewTitle').textContent = tabNames[activeTab] || activeTab;
 
   // Jika aktif di tab yang disembunyikan, fallback ke dashboard
-  if (!isAdmin && ['opname','reports','users'].includes(activeTab)) activeTab = 'dashboard';
+  if (!isAdmin && ['opname','reports','finance','users'].includes(activeTab)) activeTab = 'dashboard';
 
   if (activeTab !== 'kasir'){ const old=document.getElementById('cartBar'); if(old) old.remove(); }
   document.querySelectorAll('main section').forEach(s=> s.classList.add('hidden'));
@@ -377,6 +377,29 @@ function renderDashboard(){
         <div class="text-xs text-white/40 font-medium">${totalSku} varian produk terdaftar</div>
       </div>
     </div>
+
+    <!-- Piutang Bar -->
+    ${(() => {
+      const piutangOrders = orders.filter(o => o.paymentStatus==='pending' && o.orderStatus!=='cancelled');
+      const piutangTotal = piutangOrders.reduce((s,o)=>s+(o.totalAmount||0),0);
+      if (piutangTotal <= 0) return '';
+      return `
+      <div class="card rounded-2xl p-4 border border-danger/20 bg-danger/5 mb-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">🚨</span>
+            <div>
+              <div class="text-xs text-danger font-bold uppercase tracking-widest">Piutang Belum Lunas</div>
+              <div class="font-head font-extrabold text-xl tabular text-danger">${IDR(piutangTotal)}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-bold text-danger">${piutangOrders.length} order</div>
+            <div class="text-[10px] text-white/40">Menunggu pelunasan</div>
+          </div>
+        </div>
+      </div>`;
+    })()}
 
     <!-- Revenue Graph -->
     <div class="card rounded-2xl p-5 border-white/5 mb-6">
@@ -707,28 +730,45 @@ function renderOrders(){
   const el = document.getElementById('view-orders');
   el.innerHTML = `
     <div class="mb-3">
-      <div class="font-head font-bold text-lg">Riwayat Order</div>
+      <div class="font-head font-bold text-lg">Riwayat Order & Progress</div>
       <div class="text-xs text-white/50">${orders.length} order</div>
     </div>
     <div class="space-y-2">
       ${orders.slice(0, 50).map(o=>`
-        <div class="card bg-dark-800 rounded-xl p-3 border border-black/5">
-          <div class="flex items-center justify-between">
+        <div class="card bg-dark-800 rounded-xl p-3.5 border border-black/5">
+          <div class="flex items-start justify-between gap-3">
             <div class="flex-1">
-              <div class="text-sm font-medium">${o.orderId}</div>
-              <div class="text-xs text-white/40 mt-0.5">${fmtDate(o.createdAt)} • ${o.items.length} item • ${o.source}</div>
-              <div class="text-xs mt-1">
-                <span class="inline-block px-2 py-0.5 rounded ${o.orderStatus==='completed'?'bg-accent/10 text-accent':'bg-ink/5 text-ink/60'}">${o.orderStatus}</span>
-                <span class="inline-block px-2 py-0.5 rounded ml-1 ${o.paymentStatus==='paid'?'bg-accent/10 text-accent':'bg-warn/10 text-warn'}">${o.paymentStatus}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold">${o.orderId}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider 
+                  ${o.progress==='antri'?'bg-warn/20 text-warn':o.progress==='proses'?'bg-blue-500/20 text-blue-400':o.progress==='selesai'?'bg-purple-500/20 text-purple-400':'bg-accent/20 text-accent'}">
+                  ${o.progress || 'antri'}
+                </span>
+              </div>
+              <div class="text-xs text-white/40 mt-1">${fmtDate(o.createdAt)} • ${o.items.length} item • ${o.source.toUpperCase()}</div>
+              <div class="text-xs mt-1.5 flex items-center gap-2">
+                <span class="inline-block px-2 py-0.5 rounded ${o.orderStatus==='completed'?'bg-accent/10 text-accent':'bg-white/5 text-white/60'}">${o.orderStatus}</span>
+                <span class="inline-block px-2 py-0.5 rounded ${o.paymentStatus==='paid'?'bg-accent/10 text-accent':'bg-warn/10 text-warn font-medium'}">${o.paymentStatus === 'paid' ? 'Lunas (Paid)' : 'Piutang (Pending)'}</span>
               </div>
             </div>
             <div class="text-right">
               <div class="font-head font-bold tabular text-sm text-accent">${IDR(o.totalAmount)}</div>
               ${o.discount ? `<div class="text-[10px] text-white/30">Disc ${o.discount}%</div>` : ''}
+              
+              <!-- Progress Selector -->
+              <div class="mt-2 flex items-center justify-end gap-1">
+                <select data-progress="${o.orderId}" class="bg-dark-700 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-medium">
+                  <option value="antri" ${o.progress==='antri'?'selected':''}>Antri</option>
+                  <option value="proses" ${o.progress==='proses'?'selected':''}>Proses</option>
+                  <option value="selesai" ${o.progress==='selesai'?'selected':''}>Selesai</option>
+                  <option value="diambil" ${o.progress==='diambil'?'selected':''}>Diambil</option>
+                </select>
+              </div>
+
               <div class="flex gap-1 mt-2 justify-end">
-                ${o.paymentStatus!=='paid' ? `<button data-confirm="${o.orderId}" class="text-[10px] px-2 py-1.5 rounded-lg bg-accent text-black font-bold">✓ Bayar</button>` : ''}
-                ${o.orderStatus==='completed' ? `<button data-return="${o.orderId}" class="text-[10px] px-2 py-1.5 rounded-lg bg-dark-700 hover:bg-white/10 text-white/60">Retur</button>` : ''}
-                ${o.orderStatus==='pending' ? `<button data-cancel="${o.orderId}" class="text-[10px] px-2 py-1.5 rounded-lg bg-danger/10 text-danger font-medium">Batal</button>` : ''}
+                ${o.paymentStatus!=='paid' ? `<button data-confirm="${o.orderId}" class="text-[10px] px-2 py-1 rounded-lg bg-accent text-black font-bold">✓ Lunasi</button>` : ''}
+                ${o.orderStatus==='completed' ? `<button data-return="${o.orderId}" class="text-[10px] px-2 py-1 rounded-lg bg-dark-700 text-white/60">Retur</button>` : ''}
+                ${o.orderStatus==='pending' ? `<button data-cancel="${o.orderId}" class="text-[10px] px-2 py-1 rounded-lg bg-danger/10 text-danger font-medium">Batal</button>` : ''}
               </div>
             </div>
           </div>
@@ -736,30 +776,43 @@ function renderOrders(){
       `).join('') || `<div class="text-sm text-white/40 text-center py-10">Belum ada order.</div>`}
     </div>
   `;
-  // Confirm payment
+
+  // Change progress
+  el.querySelectorAll('[data-progress]').forEach(sel => sel.onchange = async () => {
+    try {
+      await apiCall(`/orders/${sel.dataset.progress}`, { method: 'PATCH', body: JSON.stringify({ progress: sel.value }) });
+      toast('Progress diperbarui');
+      await loadOrders();
+      renderOrders();
+    } catch(e){ toast('Gagal update progress','error'); }
+  });
+
+  // Confirm payment / Lunasi Piutang
   el.querySelectorAll('[data-confirm]').forEach(b => b.onclick = async () => {
     const orderId = b.dataset.confirm;
-    if (!confirm('Tandai order ini sudah dibayar?')) return;
+    if (!confirm('Lunasi piutang/pembayaran order ini?')) return;
     try {
       await apiCall(`/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify({ paymentStatus: 'paid', orderStatus: 'completed' }) });
       await loadOrders();
-      toast('Order dikonfirmasi');
+      await loadCustomers();
+      toast('Order dilunasi & dicatat ke omzet');
       renderOrders();
     } catch(e){ toast('Gagal konfirmasi','error'); }
   });
-  // Cancel order
+
   el.querySelectorAll('[data-cancel]').forEach(b => b.onclick = async () => {
     const orderId = b.dataset.cancel;
-    if (!confirm('Batalkan order ini? Stok akan dikembalikan.')) return;
+    if (!confirm('Batalkan order ini? Stok dikembalikan.')) return;
     try {
       await apiCall(`/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify({ orderStatus: 'cancelled' }) });
       await loadOrders();
       await loadProducts();
+      await loadCustomers();
       toast('Order dibatalkan');
       renderOrders();
     } catch(e){ toast('Gagal membatalkan','error'); }
   });
-  // Return order (refund + stok kembali)
+
   el.querySelectorAll('[data-return]').forEach(b => b.onclick = async () => {
     const orderId = b.dataset.return;
     const reason = prompt('Alasan retur (opsional):') || '';
@@ -768,6 +821,7 @@ function renderOrders(){
       const r = await apiCall(`/orders/${orderId}/return`, { method: 'POST', body: JSON.stringify({ reason }) });
       await loadOrders();
       await loadProducts();
+      await loadCustomers();
       toast(`Retur OK, refund ${IDR(r.refundAmount || 0)}`);
       renderOrders();
     } catch(e){ toast(e.message || 'Gagal retur','error'); }
@@ -777,21 +831,28 @@ function renderOrders(){
 // ===================== CUSTOMERS =====================
 function renderCustomers(){
   const el = document.getElementById('view-customers');
+  const totalPiutang = customers.reduce((s,c)=> s + (c.outstanding||0), 0);
   el.innerHTML = `
     <div class="flex items-center justify-between mb-3">
-      <div class="font-head font-bold text-lg">Pelanggan</div>
-      <button id="btnAddCustomer" class="bg-accent text-white text-sm font-medium rounded-lg px-3 py-2">+ Tambah</button>
+      <div>
+        <div class="font-head font-bold text-lg">Pelanggan & Piutang</div>
+        <div class="text-xs text-danger font-medium">Total Piutang Belum Lunas: ${IDR(totalPiutang)}</div>
+      </div>
+      <button id="btnAddCustomer" class="bg-accent text-black font-bold text-xs rounded-xl px-4 py-2.5 shadow-lg shadow-accent/20">+ Pelanggan</button>
     </div>
     <div class="space-y-2">
       ${customers.map(c=>`
-        <div class="card bg-dark-800 rounded-xl p-3 border border-black/5">
+        <div class="card bg-dark-800 rounded-xl p-3.5 border border-black/5">
           <div class="flex items-center justify-between">
             <div class="flex-1">
-              <div class="font-medium text-sm">${c.name}</div>
+              <div class="font-medium text-sm flex items-center gap-2">
+                <span>${c.name}</span>
+                ${c.outstanding > 0 ? `<span class="bg-danger/20 text-danger text-[10px] font-bold px-2 py-0.5 rounded-full">Piutang ${IDR(c.outstanding)}</span>` : ''}
+              </div>
               <div class="text-xs text-white/40 mt-0.5">${c.phone||'—'} • ${c.email||'—'}</div>
-              <div class="text-xs text-white/50 mt-1">Total: ${IDR(c.totalSpent||0)} • ${c.transactionCount||0}x transaksi</div>
+              <div class="text-xs text-white/50 mt-1">Total Belanja Lunas: ${IDR(c.totalSpent||0)} • ${c.transactionCount||0}x transaksi</div>
             </div>
-            <button data-edit="${c._id}" class="text-xs px-2.5 py-1.5 rounded-lg border border-black/10">Edit</button>
+            <button data-edit="${c._id}" class="text-xs px-2.5 py-1.5 rounded-lg border border-white/10">Edit</button>
           </div>
         </div>
       `).join('') || `<div class="text-sm text-white/40 text-center py-10">Belum ada pelanggan.</div>`}

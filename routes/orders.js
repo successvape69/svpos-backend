@@ -7,11 +7,14 @@ const Product = require('../models/Product');
 // Create order (POS atau web) — dukung diskon (%)
 router.post('/orders', async (req, res) => {
   try {
-    const { customerId, items, source, discount = 0 } = req.body;
+    const { customerId, items, source, discount = 0, paymentStatus: reqPay='pending', orderStatus: reqOrd='pending', progress: reqProg='antri' } = req.body;
 
     if (!Array.isArray(items) || !items.length) {
       return res.status(400).json({ error: 'items wajib diisi' });
     }
+    const validPay = ['pending','paid','failed'].includes(reqPay) ? reqPay : 'pending';
+    const validOrd = ['pending','confirmed','completed','cancelled','returned'].includes(reqOrd) ? reqOrd : 'pending';
+    const validProg = ['antri','proses','selesai','diambil'].includes(reqProg) ? reqProg : 'antri';
 
     // Enrich items dari DB (isi price/subtotal bila tak dikirim frontend) + validasi stok + isi purchasePrice snapshot
     const enriched = [];
@@ -47,8 +50,9 @@ router.post('/orders', async (req, res) => {
       discount: disc,
       totalAmount,
       source: source || 'pos',
-      paymentStatus: 'pending',
-      orderStatus: 'pending'
+      paymentStatus: validPay,
+      orderStatus: validOrd,
+      progress: validProg
     });
     await order.save();
 
@@ -57,15 +61,17 @@ router.post('/orders', async (req, res) => {
       await Product.findByIdAndUpdate(it.productId, { $inc: { stock: -it.quantity } });
     }
 
-    // Update customer stats kalo ada
+    // Update customer: piutang vs lunas
+    // pending = piutang (outstanding), paid = totalSpent
+    // ponytail: hutang parsial (DP) belum ada; add when butuh `paidAmount` field
     if (customerId) {
-      await Customer.findByIdAndUpdate(
-        customerId,
-        {
-          $inc: { totalSpent: totalAmount, transactionCount: 1 },
-          lastTransaction: new Date()
-        }
-      );
+      if (validPay === 'pending') {
+        await Customer.findByIdAndUpdate(customerId, { $inc: { outstanding: totalAmount, transactionCount: 1 }, lastTransaction: new Date() });
+      } else if (validPay === 'paid') {
+        await Customer.findByIdAndUpdate(customerId, { $inc: { totalSpent: totalAmount, transactionCount: 1 }, lastTransaction: new Date() });
+      } else {
+        await Customer.findByIdAndUpdate(customerId, { $inc: { transactionCount: 1 }, lastTransaction: new Date() });
+      }
     }
 
     res.json({ success: true, order });
@@ -99,10 +105,10 @@ router.get('/orders/:orderId', async (req, res) => {
   }
 });
 
-// Update order status (POS staff confirm/complete) — restores stock on cancel
+// Update order status / payment / progress — handles piutang settlement + stock rollback
 router.patch('/orders/:orderId', async (req, res) => {
   try {
-    const { orderStatus, paymentStatus } = req.body;
+    const { orderStatus, paymentStatus, progress } = req.body;
     const prev = await Order.findOne({ orderId: req.params.orderId });
     if (!prev) return res.status(404).json({ error: 'Order not found' });
 
@@ -112,11 +118,26 @@ router.patch('/orders/:orderId', async (req, res) => {
       for (const item of prev.items) {
         try { await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } }); } catch(_e){}
       }
+      // batalkan piutang/lunas
+      if (prev.customerId) {
+        if (prev.paymentStatus === 'pending') {
+          await Customer.findByIdAndUpdate(prev.customerId, { $inc: { outstanding: -prev.totalAmount } });
+        } else if (prev.paymentStatus === 'paid') {
+          await Customer.findByIdAndUpdate(prev.customerId, { $inc: { totalSpent: -prev.totalAmount } });
+        }
+      }
+    }
+
+    // pelunasan piutang: pending -> paid (settlement)
+    const settlePiutang = prev.paymentStatus === 'pending' && paymentStatus === 'paid' && !nowCancelled;
+    if (settlePiutang && prev.customerId) {
+      await Customer.findByIdAndUpdate(prev.customerId, { $inc: { outstanding: -prev.totalAmount, totalSpent: prev.totalAmount } });
     }
 
     const update = { updatedAt: new Date() };
     if (orderStatus) update.orderStatus = orderStatus;
     if (paymentStatus) update.paymentStatus = paymentStatus;
+    if (progress && ['antri','proses','selesai','diambil'].includes(progress)) update.progress = progress;
     const order = await Order.findOneAndUpdate({ orderId: req.params.orderId }, update, { new: true });
     res.json(order);
   } catch (err) {
@@ -156,9 +177,13 @@ router.post('/orders/:orderId/return', async (req, res) => {
     if (fullReturn) {
       setFields.orderStatus = 'returned';
       if (order.customerId) {
-        await Customer.findByIdAndUpdate(order.customerId, {
-          $inc: { totalSpent: -order.totalAmount, transactionCount: -1 }
-        });
+        if (order.paymentStatus === 'paid') {
+          await Customer.findByIdAndUpdate(order.customerId, { $inc: { totalSpent: -order.totalAmount, transactionCount: -1 } });
+        } else if (order.paymentStatus === 'pending') {
+          await Customer.findByIdAndUpdate(order.customerId, { $inc: { outstanding: -order.totalAmount, transactionCount: -1 } });
+        } else {
+          await Customer.findByIdAndUpdate(order.customerId, { $inc: { transactionCount: -1 } });
+        }
       }
     }
 
