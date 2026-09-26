@@ -3,8 +3,9 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
+const authMiddleware = require('../middleware/auth');
 
-// Create order (POS atau web) — dukung diskon (%)
+// Create order (POS atau web) — publik agar toko online bisa order langsung
 router.post('/orders', async (req, res) => {
   try {
     const { customerId, items, source, discount = 0, paymentStatus: reqPay='pending', orderStatus: reqOrd='pending', progress: reqProg='antri' } = req.body;
@@ -80,8 +81,8 @@ router.post('/orders', async (req, res) => {
   }
 });
 
-// Get orders (filter by status/source)
-router.get('/orders', async (req, res) => {
+// Get orders — admin/kasir only
+router.get('/orders', authMiddleware, async (req, res) => {
   try {
     const { status, source } = req.query;
     const filter = {};
@@ -94,8 +95,8 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// Get single order
-router.get('/orders/:orderId', async (req, res) => {
+// Get single order — admin/kasir only
+router.get('/orders/:orderId', authMiddleware, async (req, res) => {
   try {
     const order = await Order.findOne({ orderId: req.params.orderId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
@@ -105,8 +106,8 @@ router.get('/orders/:orderId', async (req, res) => {
   }
 });
 
-// Update order status / payment / progress — handles piutang settlement + stock rollback
-router.patch('/orders/:orderId', async (req, res) => {
+// Update order status / payment / progress — admin/kasir only
+router.patch('/orders/:orderId', authMiddleware, async (req, res) => {
   try {
     const { orderStatus, paymentStatus, progress } = req.body;
     const prev = await Order.findOne({ orderId: req.params.orderId });
@@ -145,9 +146,8 @@ router.patch('/orders/:orderId', async (req, res) => {
   }
 });
 
-// ===================== RETUR / REFUND =====================
-// POST /orders/:orderId/return — retur barang, stok dikembalikan
-router.post('/orders/:orderId/return', async (req, res) => {
+// POST /orders/:orderId/return — admin/kasir only
+router.post('/orders/:orderId/return', authMiddleware, async (req, res) => {
   try {
     const { reason, itemIndexes } = req.body;
     const order = await Order.findOne({ orderId: req.params.orderId });

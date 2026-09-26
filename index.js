@@ -30,10 +30,10 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/midtrans', midtransRoutes);
-app.use('/api', authMiddleware, orderRoutes);
 app.use('/api', authMiddleware, stockOpnameRoutes);
 app.use('/api', authMiddleware, reportRoutes);
 app.use('/api', authMiddleware, cashflowRoutes);
+app.use('/api', orderRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', productRoutes);
 
