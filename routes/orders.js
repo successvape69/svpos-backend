@@ -13,22 +13,34 @@ router.post('/orders', async (req, res) => {
       return res.status(400).json({ error: 'items wajib diisi' });
     }
 
-    // Validasi stok dulu
+    // Enrich items dari DB (isi price/subtotal bila tak dikirim frontend) + validasi stok
+    const enriched = [];
     for (const item of items) {
       const prod = await Product.findById(item.productId);
-      if (!prod || prod.stock < item.quantity) {
-        return res.status(400).json({ error: `Stok ${prod ? prod.name : 'produk'} tidak cukup` });
+      if (!prod) return res.status(400).json({ error: `Produk ${item.productId} tidak ditemukan` });
+      if (prod.stock < item.quantity) {
+        return res.status(400).json({ error: `Stok ${prod.name} tidak cukup` });
       }
+      const price = Number(item.price ?? prod.price);
+      const quantity = Number(item.quantity);
+      const subtotal = price * quantity;
+      enriched.push({
+        productId: String(prod._id),
+        productName: item.productName || prod.name,
+        price,
+        quantity,
+        subtotal
+      });
     }
 
-    const originalTotal = items.reduce((s, it) => s + (it.price || 0) * (it.quantity || 0), 0);
+    const originalTotal = enriched.reduce((s, it) => s + it.subtotal, 0);
     const disc = Math.min(Math.max(Number(discount) || 0, 0), 100); // clamp 0-100
     const totalAmount = Math.round(originalTotal * (1 - disc / 100));
 
     const order = new Order({
       orderId: `ORD-${Date.now()}`,
       customerId: customerId || null,
-      items,
+      items: enriched,
       originalTotal,
       discount: disc,
       totalAmount,
@@ -39,8 +51,8 @@ router.post('/orders', async (req, res) => {
     await order.save();
 
     // Decrement stock
-    for (const item of items) {
-      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
+    for (const it of enriched) {
+      await Product.findByIdAndUpdate(it.productId, { $inc: { stock: -it.quantity } });
     }
 
     // Update customer stats kalo ada
@@ -114,7 +126,7 @@ router.patch('/orders/:orderId', async (req, res) => {
 // POST /orders/:orderId/return — retur barang, stok dikembalikan
 router.post('/orders/:orderId/return', async (req, res) => {
   try {
-    const { reason, itemIndexes } = req.body; // itemIndexes: opsional, array index item yang diretur
+    const { reason, itemIndexes } = req.body;
     const order = await Order.findOne({ orderId: req.params.orderId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
@@ -125,7 +137,6 @@ router.post('/orders/:orderId/return', async (req, res) => {
       return res.status(400).json({ error: 'Order belum dibayar, gunakan Batalkan saja' });
     }
 
-    // Retur sebagian (index item) atau seluruh order
     const idxs = Array.isArray(itemIndexes) && itemIndexes.length
       ? itemIndexes.filter(i => i >= 0 && i < order.items.length)
       : order.items.map((_, i) => i);
@@ -136,22 +147,24 @@ router.post('/orders/:orderId/return', async (req, res) => {
       refundAmount += item.subtotal || (item.price * item.quantity);
       await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
     }
+    // ponytail: refund belum potong diskon; add when butuh refund proporsional = refundAmount * (1 - discount/100)
 
-    // Kalau retur semua item → status returned, kalau sebagian tetap completed
     const fullReturn = idxs.length === order.items.length;
-    const update = { updatedAt: new Date() };
+    const setFields = { updatedAt: new Date() };
     if (fullReturn) {
-      update.orderStatus = 'returned';
-      // Kurangi stats customer (totalSpent & transactionCount) kalau full return
+      setFields.orderStatus = 'returned';
       if (order.customerId) {
         await Customer.findByIdAndUpdate(order.customerId, {
           $inc: { totalSpent: -order.totalAmount, transactionCount: -1 }
         });
       }
     }
-    update.$push = { returns: { at: new Date(), reason: reason || '', itemIndexes: idxs, refundAmount } };
 
-    const updated = await Order.findOneAndUpdate({ orderId: req.params.orderId }, update, { new: true });
+    const updated = await Order.findOneAndUpdate(
+      { orderId: req.params.orderId },
+      { $set: setFields, $push: { returns: { at: new Date(), reason: reason || '', itemIndexes: idxs, refundAmount } } },
+      { new: true }
+    );
     res.json({ success: true, order: updated, refundAmount, fullReturn });
   } catch (err) {
     res.status(500).json({ error: err.message });
