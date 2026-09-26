@@ -3,28 +3,24 @@ const router = express.Router();
 const Cashflow = require('../models/Cashflow');
 const Order = require('../models/Order');
 
-// Hitung HPP (cost of goods sold) dari order paid+completed berdasarkan snapshot purchasePrice
 function calcHPP(orders) {
   let total = 0;
   for (const o of orders) {
     for (const it of (o.items || [])) {
-      // fallback: kalau snapshot purchasePrice 0 / belum ada, HPP dianggap 0 (jangan tebak)
       total += (it.purchasePrice || 0) * (it.quantity || 0);
     }
   }
   return total;
 }
 
-// GET /cashflow/summary — Kas, Modal, HPP, Laba
-// Definisi:
-//  - Kas = capital + totalSales - (restocks + expenses)  [uang tersedia buat restock]
-//  - Modal Toko = capital + HPP dari barang yang sudah terjual (atau capital kalau HPP 0) — modal stok terikat di barang dagang
-//  - Modal Awal = capital (cash injection)
-//  - totalSales = omzet (paid+completed)
-//  - HPP = sum(purchasePrice*qty) dari order lunas
-//  - Laba Kotor = totalSales - HPP - totalDiscount (diskon adalah pengurang omzet)
-//  - Laba Bersih = Laba Kotor - expenses
-//  - Biaya operasional (expense) TIDAK mengurangi modal, hanya mengurangi laba.
+// GET /cashflow/summary — posisi modal & laba dipisah
+// Rumus user (benar):
+//  modalPosisi(t) = modalPosisi(t-1) + HPP_hari_ini - restock_hari_ini
+// collapsed: modalPosisi = capital + sum(HPP) - sum(restock)
+//  Kas total (fisik di laci) = modalPosisi + labaBersih
+//  labaKotor = omzet(setelah diskon) - HPP
+//  labaBersih = labaKotor - biayaOperasional
+// -> restock HANYA potong modal, JANGAN potong laba. Operasional potong laba, jangan potong modal.
 router.get('/cashflow/summary', async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
@@ -45,38 +41,34 @@ router.get('/cashflow/summary', async (req, res) => {
     const totalSales = paidOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
     const totalOriginal = paidOrders.reduce((s, o) => s + (o.originalTotal || o.totalAmount || 0), 0);
     const totalDiscount = Math.max(totalOriginal - totalSales, 0);
+    const totalHPP = calcHPP(paidOrders);
 
-    const totalHPP = calcHPP(paidOrders); // dibutuhkan purchasePrice snapshot di Order.items
+    const grossProfit = totalSales - totalHPP;
+    const netProfit = grossProfit - expenses;
 
-    const grossProfit = totalSales - totalHPP; // sebelum biaya operasional
-    const netProfit = grossProfit - expenses; // biaya operasional baru potong di sini
+    // uang bisa belanja restock — HANYA dari modal, bukan dari laba
+    const modalPosisi = capital + totalHPP - restocks;
 
-    // Kas tersedia buat restock/belanja: kas fisik
-    const availableFunds = (capital + totalSales) - (expenses + restocks);
+    // kas fisik total (jika digabung) — untuk validasi, bukan untuk belanja
+    const kasTotal = modalPosisi + netProfit; // = capital + totalSales - restocks - expenses
 
-    // Modal terikat di stok = (Modal awal yang dibelanjakan) vs HPP keluar
-    // Interpretasi praktis: Modal toko saat ini = capital - netProfit negatif? Untuk sederhana: modal = capital.
-    // HPP dipakai untuk ukur laba, bukan untuk kurangi modal langsung.
-
-    // Ringkasan laba/pos keuangan buat dashboard
-    const summary = {
+    res.json({
       capital,
       restocks,
       totalSales,
       totalOriginal,
       totalDiscount,
-      totalHPP,           // <-- HPP penjualan (modal yang ikut terjual)
-      grossProfit,        // laba kotor
-      expenses,           // biaya operasional (potong laba bersih)
-      netProfit,          // laba bersih
-      availableFunds,     // kas tersedia (bisa belanja restock)
-      // posisi modal (informasional)
-      // modalToko = capital (uang pemilik) ; laba ditahan = netProfit kalau positif
-      retainedEarnings: netProfit, // laba ditahan (bisa minus)
+      totalHPP,
+      grossProfit,
+      expenses,
+      netProfit,
+      modalPosisi,      // <-- ini "uang bisa dibelanjakan untuk restock"
+      kasTotal,         // total cash fisik
+      retainedEarnings: netProfit,
+      // backward compat (old frontend field)
+      availableFunds: modalPosisi,
       flows: flows.sort((a, b) => b.date - a.date)
-    };
-
-    res.json(summary);
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

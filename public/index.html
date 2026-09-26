@@ -1166,20 +1166,20 @@ async function renderFinance(){
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
-        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Kas Tersedia (bisa restock)</div>
-        <div class="font-head font-extrabold text-xl tabular ${data.availableFunds >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.availableFunds)}</div>
-        <div class="text-[10px] text-white/30 mt-1">Modal+Omzet-Restock-Operasional</div>
+      <div class="card bg-gradient-to-br from-accent/20 to-dark-900 rounded-2xl p-5 border-accent/30 border">
+        <div class="text-[10px] text-accent uppercase tracking-widest font-bold mb-1">Modal Bisa Restock</div>
+        <div class="font-head font-extrabold text-xl tabular ${(data.modalPosisi ?? data.availableFunds) >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.modalPosisi ?? data.availableFunds)}</div>
+        <div class="text-[10px] text-white/30 mt-1">Modal awal + HPP terjual - Restock</div>
       </div>
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
-        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Omzet</div>
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Omzet (HPP)</div>
         <div class="font-head font-extrabold text-xl tabular">${IDR(data.totalSales)}</div>
         <div class="text-[10px] text-white/30 mt-1">HPP ${IDR(data.totalHPP)}</div>
       </div>
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
         <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Laba Kotor</div>
         <div class="font-head font-extrabold text-xl tabular ${data.grossProfit >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.grossProfit)}</div>
-        <div class="text-[10px] text-white/30 mt-1">Omzet - HPP${data.totalDiscount ? ` - disc ${IDR(data.totalDiscount)} sudah di omzet` : ''}</div>
+        <div class="text-[10px] text-white/30 mt-1">Omzet - HPP</div>
       </div>
       <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
         <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Laba Bersih</div>
@@ -1191,11 +1191,11 @@ async function renderFinance(){
     <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5 mb-6">
       <div class="grid grid-cols-2 gap-4 text-sm">
         <div class="flex justify-between"><span class="text-white/50">Modal Awal</span><span class="tabular font-bold">${IDR(data.capital)}</span></div>
-        <div class="flex justify-between"><span class="text-white/50">Total Restock (modal keluar)</span><span class="tabular font-bold">${IDR(data.restocks)}</span></div>
-        <div class="flex justify-between"><span class="text-white/50">Laba Ditahan</span><span class="tabular font-bold ${data.retainedEarnings >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.retainedEarnings)}</span></div>
-        <div class="flex justify-between"><span class="text-white/50">Tersedia = Kas</span><span class="tabular font-bold">${IDR(data.availableFunds)}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">HPP Terjual (balik ke modal)</span><span class="tabular font-bold text-accent">+ ${IDR(data.totalHPP)}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">Total Restock</span><span class="tabular font-bold text-danger">- ${IDR(data.restocks)}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">Kas Total (fisik, info saja)</span><span class="tabular font-bold">${IDR(data.kasTotal ?? data.availableFunds)}</span></div>
       </div>
-      <div class="text-[11px] text-white/30 mt-3">Biaya operasional (sewa/listrik) mengurangi <b>Laba</b>, bukan Modal. Modal hanya berkurang saat Restock / tambah saat setor Modal.</div>
+      <div class="text-[11px] text-white/30 mt-3">Modal restock = <b>Modal awal + HPP - Restock</b>. Laba TIDAK masuk modal, jadi aman tidak kepakai saat closing. Operasional hanya potong laba.</div>
     </div>
 
     <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5">
