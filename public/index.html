@@ -66,6 +66,7 @@
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="products" title="Produk">📦</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="opname" title="Opname">📋</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="reports" title="Laporan">📈</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="finance" title="Keuangan & Modal">💰</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="orders" title="Order">📜</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="customers" title="Customer">👥</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="users" title="Users">👤</button>
@@ -117,6 +118,7 @@
         <section id="view-products" class="hidden"></section>
         <section id="view-opname" class="hidden"></section>
         <section id="view-reports" class="hidden"></section>
+        <section id="view-finance" class="hidden"></section>
         <section id="view-orders" class="hidden"></section>
         <section id="view-customers" class="hidden"></section>
         <section id="view-users" class="hidden"></section>
@@ -209,7 +211,7 @@ async function loadProducts(){
   try {
     const data = await apiCall('/products');
     products = {};
-    data.forEach(p => { products[p._id] = { id: p._id, name: p.name, price: p.price, stock: p.stock }; });
+    data.forEach(p => { products[p._id] = { id: p._id, name: p.name, price: p.price, purchasePrice: p.purchasePrice || 0, stock: p.stock }; });
   } catch(e){ /* fallback empty */ }
 }
 
@@ -295,7 +297,7 @@ function render(){
 
   const views = {
     dashboard: 'view-dashboard', kasir: 'view-kasir', products: 'view-products',
-    opname: 'view-opname', reports: 'view-reports', users: 'view-users',
+    opname: 'view-opname', reports: 'view-reports', finance: 'view-finance', users: 'view-users',
     orders: 'view-orders', customers: 'view-customers'
   };
   if (views[activeTab]) document.getElementById(views[activeTab]).classList.remove('hidden');
@@ -305,6 +307,7 @@ function render(){
   else if (activeTab === 'products') renderProducts();
   else if (activeTab === 'opname') renderOpname();
   else if (activeTab === 'reports') renderReports();
+  else if (activeTab === 'finance') renderFinance();
   else if (activeTab === 'users') renderUsers();
   else if (activeTab === 'orders') renderOrders();
   else if (activeTab === 'customers') renderCustomers();
@@ -683,8 +686,9 @@ function showReceipt(order, paymentMethod='cash'){
           <b>Menunggu pembayaran transfer.</b> Setelah transfer dikonfirmasi, ubah status order di tab Riwayat Order.
         </div>` : ''}
       </div>
-      <div class="grid grid-cols-2 gap-2 mt-5">
-        <button id="btnPrint" class="border border-white/10 rounded-lg py-2.5 font-medium text-sm text-white/80">Cetak</button>
+      <div class="grid grid-cols-3 gap-2 mt-5">
+        <button id="btnPrint" class="border border-white/10 rounded-lg py-2.5 font-medium text-sm text-white/80">Printer</button>
+        <button id="btnPrintBT" class="border border-white/10 rounded-lg py-2.5 font-medium text-sm text-white/80 bg-dark-700">Bluetooth</button>
         <a id="btnWa" target="_blank" href="https://wa.me/?text=${encodeURIComponent(waText)}" class="bg-accent text-black rounded-lg py-2.5 font-medium text-sm text-center">WhatsApp</a>
       </div>
       <button id="btnDoneReceipt" class="w-full mt-2 text-sm text-white/50 py-2">Selesai</button>
@@ -694,6 +698,7 @@ function showReceipt(order, paymentMethod='cash'){
     document.getElementById('receiptPrintArea').innerHTML = document.getElementById('receiptContent').innerHTML;
     window.print();
   };
+  document.getElementById('btnPrintBT').onclick = ()=> thermalPrint(order, paymentMethod);
   document.getElementById('btnDoneReceipt').onclick = closeModal;
 }
 
@@ -1145,6 +1150,209 @@ function openUserModal(){
   };
 }
 
+// ===================== FINANCE / CASHFLOW =====================
+async function renderFinance(){
+  const el = document.getElementById('view-finance');
+  let data = { capital:0, totalSales:0, expenses:0, restocks:0, availableFunds:0, flows:[] };
+  try { data = await apiCall('/cashflow/summary'); } catch(e){}
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="font-head font-bold text-xl">Modal & Keuangan</div>
+        <div class="text-xs text-white/40">Pantau arus kas untuk restock</div>
+      </div>
+      <button id="btnAddCashflow" class="bg-accent text-black font-bold text-xs rounded-xl px-4 py-2.5 shadow-lg shadow-accent/20">+ Transaksi</button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Modal Awal</div>
+        <div class="font-head font-extrabold text-xl tabular">${IDR(data.capital)}</div>
+      </div>
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Total Omzet</div>
+        <div class="font-head font-extrabold text-xl tabular text-accent">${IDR(data.totalSales)}</div>
+      </div>
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Total Restock (Beli)</div>
+        <div class="font-head font-extrabold text-xl tabular text-danger">- ${IDR(data.restocks)}</div>
+      </div>
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Pengeluaran Lain</div>
+        <div class="font-head font-extrabold text-xl tabular text-warn">- ${IDR(data.expenses)}</div>
+      </div>
+    </div>
+
+    <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5 mb-6 text-center">
+      <div class="text-sm text-white/50 font-medium">Sisa Modal Bisa Dibelanjakan (Restock)</div>
+      <div class="font-head font-extrabold text-4xl tabular mt-2 ${data.availableFunds >= 0 ? 'text-accent' : 'text-danger'}">${IDR(data.availableFunds)}</div>
+      <div class="text-xs text-white/30 mt-1">(Modal + Omzet) - (Restock + Pengeluaran)</div>
+    </div>
+
+    <div class="card bg-dark-800 rounded-2xl p-5 border border-white/5">
+      <div class="text-sm font-bold mb-3">Riwayat Arus Kas</div>
+      <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
+        ${data.flows.length ? data.flows.map(f => `
+          <div class="flex items-center justify-between p-3 bg-dark-900 border border-white/5 rounded-xl">
+            <div class="flex items-center gap-3">
+              <span class="text-lg">${f.type==='capital'?'💵':f.type==='income'?'📈':f.type==='restock'?'📦':'💸'}</span>
+              <div>
+                <div class="text-sm font-medium capitalize">${f.type} ${f.description ? '(' + f.description + ')' : ''}</div>
+                <div class="text-[10px] text-white/30">${fmtDate(f.date)}</div>
+              </div>
+            </div>
+            <div class="font-bold text-sm tabular ${['expense','restock'].includes(f.type)?'text-danger':'text-accent'}">
+              ${['expense','restock'].includes(f.type)?'- ':'+'}${IDR(f.amount)}
+            </div>
+          </div>
+        `).join('') : '<div class="text-sm text-white/30 text-center py-8">Belum ada transaksi kas</div>'}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btnAddCashflow').onclick = () => {
+    modal(`
+      <div class="p-5">
+        <div class="font-head font-bold text-lg mb-4">Catat Transaksi Kas</div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-white/50">Tipe</label>
+            <select id="cfType" class="w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 mt-1 outline-none">
+              <option value="capital">Modal Awal (Deposit)</option>
+              <option value="restock">Restock / Beli Barang</option>
+              <option value="expense">Pengeluaran (Sewa/Listrik/Gaji)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-white/50">Jumlah (Rp)</label>
+            <input id="cfAmount" type="number" class="w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 mt-1 outline-none tabular" placeholder="0">
+          </div>
+          <div>
+            <label class="text-xs text-white/50">Keterangan (Opsional)</label>
+            <input id="cfDesc" type="text" class="w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 mt-1 outline-none" placeholder="Contoh: Bayar listrik bulanan">
+          </div>
+        </div>
+        <div class="flex gap-2 mt-5">
+          <button id="btnCancelCf" class="flex-1 text-sm text-white/50 py-2.5">Batal</button>
+          <button id="btnSaveCf" class="flex-1 bg-accent text-black font-bold text-sm rounded-xl py-2.5">Simpan</button>
+        </div>
+      </div>
+    `);
+    document.getElementById('btnCancelCf').onclick = closeModal;
+    document.getElementById('btnSaveCf').onclick = async () => {
+      const type = document.getElementById('cfType').value;
+      const amount = document.getElementById('cfAmount').value;
+      const description = document.getElementById('cfDesc').value;
+      if (!amount || Number(amount) <= 0) { toast('Isi jumlah','error'); return; }
+      await apiCall('/cashflow', { method:'POST', body: JSON.stringify({type, amount, description}) });
+      closeModal();
+      toast('Transaksi tercatat');
+      renderFinance();
+    };
+  };
+}
+
+// ===================== BLUETOOTH THERMAL PRINTER (ESC/POS) =====================
+let btDevice = null;
+let btCharacteristic = null;
+
+async function connectBluetooth() {
+  if (!navigator.bluetooth) {
+    toast('Web Bluetooth tidak didukung di browser ini','error');
+    return false;
+  }
+  try {
+    toast('Mencari printer Bluetooth...');
+    btDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['battery_service'] // Beberapa printer butuh service ID spesifik
+    });
+    const server = await btDevice.gatt.connect();
+    const service = await server.getPrimaryService('battery_service').catch(() => null); 
+    // Fallback: langsung cari characteristic nulis
+    if (service) {
+      btCharacteristic = await service.getCharacteristic('battery_level');
+    } else {
+      // Coba service serial port atau generic
+      const services = await server.getPrimaryServices();
+      if (services.length > 0) {
+        const chars = await services[0].getCharacteristics();
+        btCharacteristic = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+      }
+    }
+    
+    if (btCharacteristic) {
+      toast(`Terhubung ke ${btDevice.name || 'Printer'}!`, 'ok');
+      return true;
+    } else {
+      toast('Gagal menemukan service tulis di printer','error');
+      return false;
+    }
+  } catch (err) {
+    console.error(err);
+    toast('Gagal koneksi Bluetooth: ' + err.message, 'error');
+    return false;
+  }
+}
+
+function alignCenter() { return new Uint8Array([0x1B, 0x61, 1]); }
+function alignLeft() { return new Uint8Array([0x1B, 0x61, 0]); }
+function boldOn() { return new Uint8Array([0x1B, 0x45, 0x01]); }
+function boldOff() { return new Uint8Array([0x1B, 0x45, 0x00]); }
+function cutPaper() { return new Uint8Array([0x1D, 0x56, 0x41, 0x10]); } // GS V A 16
+
+function encode(str) {
+  return new TextEncoder().encode(str);
+}
+
+async function thermalPrint(order, payMethod) {
+  if (!btCharacteristic) {
+    const connected = await connectBluetooth();
+    if (!connected) return;
+  }
+
+  const center = alignCenter();
+  const left = alignLeft();
+  const bold = boldOn();
+  const unbold = boldOff();
+  const lines = [];
+
+  // Struk sederhana
+  lines.push(center, bold, encode("SUCCESS VAPE\n"), unbold);
+  lines.push(center, encode("================================\n"));
+  lines.push(left, encode(`ID: ${order.orderId}\n`));
+  lines.push(left, encode(`Tgl: ${fmtDate(order.createdAt)}\n`));
+  lines.push(center, encode("================================\n"));
+  lines.push(left, encode("Item           Qty   Subtotal\n"));
+  lines.push(left, encode("--------------------------------\n"));
+  
+  order.items.forEach(it => {
+    const name = it.productName.substring(0, 15).padEnd(15);
+    const qty = String(it.quantity).padStart(3);
+    const sub = IDR(it.subtotal).padStart(10);
+    lines.push(left, encode(`${name} ${qty} ${sub}\n`));
+  });
+
+  lines.push(center, encode("================================\n"));
+  lines.push(bold, encode(`TOTAL: ${IDR(order.totalAmount).padStart(25)}\n`), unbold);
+  lines.push(left, encode(`Bayar: ${payMethod.toUpperCase()}\n`));
+  lines.push(center, encode("\nTERIMA KASIH\n"));
+  lines.push(cutPaper());
+
+  try {
+    for (const line of lines) {
+      await btCharacteristic.writeValue(line);
+    }
+    toast('Berhasil kirim ke printer!');
+  } catch (err) {
+    toast('Gagal mencetak: ' + err.message, 'error');
+    btCharacteristic = null; // Reset biar reconnect
+  }
+}
+
+// ===================== AUTO-LOGIN =====================
+
 // ===================== PRODUCTS =====================
 function renderProducts(){
   const el = document.getElementById('view-products');
@@ -1173,28 +1381,33 @@ function renderProducts(){
 }
 
 function openProductModal(productId){
-  const prod = productId ? products[productId] : { name: '', price: 0, stock: 0 };
+  const prod = productId ? products[productId] : { name: '', price: 0, purchasePrice: 0, stock: 0 };
   modal(`
     <div class="p-5">
       <div class="font-head font-bold text-lg mb-4">${productId ? 'Edit Produk' : 'Tambah Produk'}</div>
       <div class="space-y-3">
         <div>
-          <label class="text-sm font-medium">Nama</label>
-          <input id="pf_name" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${prod.name||''}">
+          <label class="text-xs text-white/50">Nama Produk</label>
+          <input id="pf_name" type="text" class="mt-1 w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-accent" value="${prod.name||''}">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-white/50">Harga Jual</label>
+            <input id="pf_price" type="number" class="mt-1 w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-accent tabular" value="${prod.price||0}">
+          </div>
+          <div>
+            <label class="text-xs text-white/50">Harga Beli (Modal)</label>
+            <input id="pf_purchasePrice" type="number" class="mt-1 w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-accent tabular" value="${prod.purchasePrice||0}">
+          </div>
         </div>
         <div>
-          <label class="text-sm font-medium">Harga</label>
-          <input id="pf_price" type="number" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${prod.price||0}">
-        </div>
-        <div>
-          <label class="text-sm font-medium">Stok</label>
-          <input id="pf_stock" type="number" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" value="${prod.stock||0}">
+          <label class="text-xs text-white/50">Stok Awal</label>
+          <input id="pf_stock" type="number" class="mt-1 w-full bg-dark-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-accent tabular" value="${prod.stock||0}">
         </div>
       </div>
       <div class="flex gap-2 mt-5">
-        <div class="flex-1"></div>
-        <button id="btnCancelProd" class="px-4 py-2.5 text-sm">Batal</button>
-        <button id="btnSaveProd" class="bg-accent text-white rounded-lg px-4 py-2.5 text-sm font-medium">Simpan</button>
+        <button id="btnCancelProd" class="flex-1 py-2.5 text-sm text-white/50">Batal</button>
+        <button id="btnSaveProd" class="flex-1 bg-accent text-black font-bold rounded-xl py-2.5 text-sm">Simpan</button>
       </div>
     </div>
   `);
@@ -1205,6 +1418,7 @@ function openProductModal(productId){
     const prodData = {
       name,
       price: parseInt(document.getElementById('pf_price').value) || 0,
+      purchasePrice: parseInt(document.getElementById('pf_purchasePrice').value) || 0,
       stock: parseInt(document.getElementById('pf_stock').value) || 0
     };
     try {
