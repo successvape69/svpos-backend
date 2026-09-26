@@ -65,7 +65,10 @@ router.delete('/customers/:id', async (req, res) => {
 router.get('/customers/lookup/:phone', async (req, res) => {
   try {
     const phone = req.params.phone.replace(/[^0-9]/g, '');
-    const customer = await Customer.findOne({ phone });
+    // Ambil customer points tertinggi (transaksi terbanyak) kalau duplikat phone
+    const customers = await Customer.find({ phone }).sort({ points: -1, updatedAt: -1 });
+    if (!customers.length) return res.status(404).json({ error: 'Pelanggan tidak ditemukan' });
+    const customer = customers[0];
     if (!customer) return res.status(404).json({ error: 'Pelanggan tidak ditemukan' });
 
     // Ambil order pelanggan (public, hanya info dasar)
