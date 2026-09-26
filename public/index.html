@@ -18,15 +18,19 @@
           body: ['Inter','sans-serif'],
         },
         colors: {
-          paper: '#F6F4F0',
-          ink: '#1B1F1D',
-          accent: {
-            DEFAULT: '#0F6B5C',
-            soft: '#E3F1EC',
-            dark: '#0B5145',
+          dark: {
+            900: '#0A0A0A',
+            800: '#141414',
+            700: '#1F1F1F',
+            600: '#2E2E2E',
           },
-          warn: '#B45309',
-          danger: '#B3261E',
+          accent: {
+            DEFAULT: '#10B981', // Emerald
+            soft: '#064E3B',
+            dark: '#059669',
+          },
+          warn: '#F59E0B',
+          danger: '#EF4444',
         }
       }
     }
@@ -36,84 +40,81 @@
   :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
   *, *::before, *::after { box-sizing: inherit; }
-  html, body { height: 100%; }
-  body { background: #F6F4F0; color: #1B1F1D; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { background:#14181A; color:#EDEFEE; } }
-  :root[data-theme="dark"] body { background:#14181A; color:#EDEFEE; }
+  body { background: #0A0A0A; color: #FFFFFF; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  .card { background: #141414; border: 1px solid rgba(255,255,255,0.05); }
+  .glass { background: rgba(20,20,20,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
   .tabular { font-variant-numeric: tabular-nums; }
-  .card { background:#fff; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card { background:#1C2124; } }
-  :root[data-theme="dark"] .card { background:#1C2124; }
-  ::-webkit-scrollbar { height:6px; width:6px; }
-  ::-webkit-scrollbar-thumb { background:#0000001f; border-radius:99px; }
-  .navbtn { transition: color .15s ease, background-color .15s ease; }
-  .prodcard { transition: transform .1s ease, box-shadow .15s ease; }
+  ::-webkit-scrollbar { height:4px; width:4px; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:99px; }
+  .navbtn { transition: all .15s ease; border-radius: 12px; }
+  .navbtn.active { background: #10B981; color: #000; box-shadow: 0 0 20px rgba(16,185,129,0.3); }
+  .prodcard { transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; }
+  .prodcard:hover { border-color: rgba(16,185,129,0.3); background: #1F1F1F; transform: translateY(-2px); }
   .prodcard:active { transform: scale(0.97); }
-  @media print {
-    body * { visibility: hidden; }
-    #receiptPrintArea, #receiptPrintArea * { visibility: visible; }
-    #receiptPrintArea { position: absolute; left:0; top:0; width: 300px; }
-  }
 </style>
 </head>
-<body class="font-body">
+<body class="font-body text-white selection:bg-accent/30 overflow-hidden">
 
-<div id="app" class="min-h-screen flex flex-col max-w-5xl mx-auto">
-  <!-- Login Screen -->
-  <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-accent/10 to-transparent">
-    <div class="card rounded-2xl p-6 w-full max-w-sm shadow-lg">
-      <div class="text-center mb-6">
-        <div class="font-head font-extrabold text-2xl mb-1">Success Vape</div>
-        <div class="text-sm text-ink/50">POS System</div>
-      </div>
-      <form id="loginForm" class="space-y-4">
-        <div>
-          <label class="text-sm font-medium block mb-1">Username</label>
-          <input id="loginUsername" type="text" placeholder="admin" class="w-full border rounded-lg px-3 py-2.5 text-sm" value="admin">
-        </div>
-        <div>
-          <label class="text-sm font-medium block mb-1">Password</label>
-          <input id="loginPassword" type="password" placeholder="••••••••" class="w-full border rounded-lg px-3 py-2.5 text-sm" value="admin123">
-        </div>
-        <button type="submit" class="w-full bg-accent text-white font-medium rounded-lg py-2.5 text-sm">Masuk</button>
-      </form>
-      <div id="loginError" class="text-sm text-danger mt-3 text-center hidden"></div>
+<div id="app" class="h-screen flex overflow-hidden">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="hidden w-20 flex-col items-center py-6 bg-dark-900 border-r border-white/5 z-20">
+    <div class="w-10 h-10 bg-accent rounded-xl mb-10 flex items-center justify-center font-head font-extrabold text-black">SV</div>
+    <div class="flex-1 flex flex-col gap-4">
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="dashboard" title="Dashboard">📊</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="kasir" title="Kasir">🛒</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="products" title="Produk">📦</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="orders" title="Order">📜</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="customers" title="Customer">👥</button>
     </div>
-  </div>
+    <button id="btnLogout" class="w-12 h-12 flex items-center justify-center text-white/20 hover:text-danger transition-colors">🚪</button>
+  </aside>
 
-  <!-- Main App -->
-  <div id="mainApp" class="hidden flex flex-col min-h-screen">
-    <header class="px-4 pt-4 pb-3 flex items-center justify-between border-b border-black/5">
-      <div>
-        <div class="font-head font-extrabold text-lg tracking-tight">Success Vape</div>
-        <div id="dbStatus" class="text-xs text-ink/50 dark:text-white/40">API Mode</div>
-      </div>
-      <div class="flex items-center gap-4">
-        <div id="userInfo" class="text-right">
-          <div class="text-xs text-ink/50">User</div>
-          <div id="currentUser" class="font-medium text-sm">—</div>
+  <div class="flex-1 flex flex-col min-w-0 bg-dark-900">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="h-full flex items-center justify-center p-4">
+      <div class="card rounded-3xl p-8 w-full max-w-sm shadow-2xl border-white/10">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 bg-accent rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl">⚡</div>
+          <div class="font-head font-extrabold text-2xl tracking-tight mb-1">Success Vape</div>
+          <div class="text-sm text-white/40">Premium POS Experience</div>
         </div>
-        <button id="btnLogout" class="text-xs px-2.5 py-1.5 rounded-lg border border-black/10 text-ink/60">Logout</button>
+        <form id="loginForm" class="space-y-4">
+          <div>
+            <input id="loginUsername" type="text" placeholder="Username" class="w-full bg-dark-800 border border-white/5 rounded-xl px-4 py-3.5 text-sm focus:border-accent outline-none transition-all" value="admin">
+          </div>
+          <div>
+            <input id="loginPassword" type="password" placeholder="Password" class="w-full bg-dark-800 border border-white/5 rounded-xl px-4 py-3.5 text-sm focus:border-accent outline-none transition-all" value="admin123">
+          </div>
+          <button type="submit" class="w-full bg-accent text-black font-bold rounded-xl py-3.5 text-sm shadow-lg shadow-accent/20 active:scale-[0.98] transition-transform">Sign In</button>
+        </form>
+        <div id="loginError" class="text-xs text-danger mt-4 text-center hidden font-medium"></div>
       </div>
-    </header>
+    </div>
 
-    <nav class="px-2 border-b border-black/5 overflow-x-auto">
-      <div class="flex gap-1 w-max px-2">
-        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 text-accent border-accent" data-tab="dashboard">Dashboard</button>
-        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="kasir">Kasir</button>
-        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="products">Produk</button>
-        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="orders">Riwayat Order</button>
-        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="customers">Pelanggan</button>
-      </div>
-    </nav>
+    <!-- Main Content Wrapper -->
+    <div id="mainApp" class="hidden flex flex-col h-full overflow-hidden">
+      <header class="h-16 px-6 flex items-center justify-between border-b border-white/5 bg-dark-900/50 backdrop-blur-md">
+        <div class="flex items-center gap-3">
+          <span id="viewTitle" class="font-head font-bold text-lg tracking-tight">Dashboard</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="text-right hidden sm:block">
+            <div id="currentUser" class="font-bold text-sm">Admin</div>
+            <div class="text-[10px] text-white/40 tracking-widest uppercase">Verified</div>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-dark-800 border border-white/10 flex items-center justify-center text-xs">A</div>
+        </div>
+      </header>
 
-    <main class="flex-1 px-4 py-4 pb-24">
-      <section id="view-dashboard" class="hidden"></section>
-      <section id="view-kasir" class="hidden"></section>
-      <section id="view-products" class="hidden"></section>
-      <section id="view-orders" class="hidden"></section>
-      <section id="view-customers" class="hidden"></section>
-    </main>
+      <main class="flex-1 overflow-y-auto p-6 scroll-smooth">
+        <section id="view-dashboard" class="hidden"></section>
+        <section id="view-kasir" class="hidden h-full"></section>
+        <section id="view-products" class="hidden"></section>
+        <section id="view-orders" class="hidden"></section>
+        <section id="view-customers" class="hidden"></section>
+      </main>
+    </div>
   </div>
 </div>
 
@@ -139,8 +140,8 @@ function toast(msg, kind='ok'){
 function modal(innerHtml, {wide=false} = {}){
   const root = document.getElementById('modalRoot');
   root.innerHTML = `
-    <div class="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" id="modalOverlay">
-      <div class="card w-full ${wide ? 'sm:max-w-lg':'sm:max-w-md'} rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" id="modalOverlay">
+      <div class="card bg-dark-900 border border-white/10 w-full ${wide ? 'sm:max-w-xl':'sm:max-w-md'} rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         ${innerHtml}
       </div>
     </div>`;
@@ -263,34 +264,32 @@ document.querySelectorAll('.tabbtn').forEach(b => {
 function render(){
   if (!currentUser) return;
   document.getElementById('currentUser').textContent = currentUser.username;
-  // cart bar hanya di kasir
+  document.getElementById('sidebar').classList.remove('hidden');
+  document.getElementById('sidebar').classList.add('flex');
+  
+  // Update view title & active nav
+  document.getElementById('viewTitle').textContent = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+  document.querySelectorAll('.tabbtn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === activeTab);
+  });
+  
   if (activeTab !== 'kasir'){ const old=document.getElementById('cartBar'); if(old) old.remove(); }
   document.querySelectorAll('main section').forEach(s=> s.classList.add('hidden'));
-  if (activeTab === 'dashboard'){
-    document.getElementById('view-dashboard').classList.remove('hidden');
-    renderDashboard();
-  } else if (activeTab === 'kasir'){
-    document.getElementById('view-kasir').classList.remove('hidden');
-    renderKasir();
-  } else if (activeTab === 'products'){
-    document.getElementById('view-products').classList.remove('hidden');
-    renderProducts();
-  } else if (activeTab === 'orders'){
-    document.getElementById('view-orders').classList.remove('hidden');
-    renderOrders();
-  } else if (activeTab === 'customers'){
-    document.getElementById('view-customers').classList.remove('hidden');
-    renderCustomers();
-  }
+  
+  const views = {
+    dashboard: 'view-dashboard', kasir: 'view-kasir', products: 'view-products',
+    orders: 'view-orders', customers: 'view-customers'
+  };
+  document.getElementById(views[activeTab]).classList.remove('hidden');
+  
+  if (activeTab === 'dashboard') renderDashboard();
+  else if (activeTab === 'kasir') renderKasir();
+  else if (activeTab === 'products') renderProducts();
+  else if (activeTab === 'orders') renderOrders();
+  else if (activeTab === 'customers') renderCustomers();
 }
 
 // ===================== DASHBOARD =====================
-function isToday(ts){
-  const d = new Date(ts);
-  const now = new Date();
-  return d.getDate()===now.getDate() && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-}
-
 function renderDashboard(){
   const el = document.getElementById('view-dashboard');
   const paidOrders = orders.filter(o => o.paymentStatus==='paid');
@@ -301,71 +300,107 @@ function renderDashboard(){
   const totalStok = Object.values(products).reduce((s,p)=>s+(p.stock||0),0);
   const totalSku = Object.values(products).length;
 
-  // Top products (by qty sold, from paid orders)
   const qtyByProd = {};
   paidOrders.forEach(o => (o.items||[]).forEach(it => { qtyByProd[it.productName] = (qtyByProd[it.productName]||0) + (it.quantity||0); }));
   const topProducts = Object.entries(qtyByProd).sort((a,b)=>b[1]-a[1]).slice(0,5);
-
-  // Low stock
   const lowStock = Object.values(products).filter(p => (p.stock||0) <= 5).sort((a,b)=>a.stock-b.stock);
 
-  // Last 7 days omzet
   const days = [];
-  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0); const next=new Date(d); next.setDate(d.getDate()+1); const dayOmzet = paidOrders.filter(o=>{ const t=new Date(o.createdAt); return t>=d && t<next; }).reduce((s,o)=>s+(o.totalAmount||0),0); days.push({label:d.toLocaleDateString('id-ID',{weekday:'short'}), val:dayOmzet}); }
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+    const next=new Date(d); next.setDate(d.getDate()+1);
+    const dayOmzet = paidOrders.filter(o=>{ const t=new Date(o.createdAt); return t>=d && t<next; }).reduce((s,o)=>s+(o.totalAmount||0),0);
+    days.push({label:d.toLocaleDateString('id-ID',{weekday:'short'}), val:dayOmzet});
+  }
   const maxDayVal = Math.max(1, ...days.map(d=>d.val));
 
   el.innerHTML = `
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-      <div class="card rounded-xl p-3 border border-black/5">
-        <div class="text-xs text-ink/40">Omzet Hari Ini</div>
-        <div class="font-head font-extrabold tabular text-sm mt-1">${IDR(todayOmzet)}</div>
-        <div class="text-[11px] text-ink/40 mt-0.5">${todayOrders.length} trx lunas</div>
+    <!-- Top Hero Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="flex items-center justify-between text-white/40 text-xs font-medium mb-3">
+          <span>OMZET HARI INI</span>
+          <span class="text-accent text-sm">📈</span>
+        </div>
+        <div class="font-head font-extrabold text-2xl tracking-tight text-white mb-1 tabular">${IDR(todayOmzet)}</div>
+        <div class="text-xs text-accent/80 font-medium">${todayOrders.length} transaksi selesai</div>
       </div>
-      <div class="card rounded-xl p-3 border border-black/5">
-        <div class="text-xs text-ink/40">Total Omzet (lunas)</div>
-        <div class="font-head font-extrabold tabular text-sm mt-1">${IDR(allOmzet)}</div>
-        <div class="text-[11px] text-ink/40 mt-0.5">${paidOrders.length} order</div>
+
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="flex items-center justify-between text-white/40 text-xs font-medium mb-3">
+          <span>TOTAL PENDAPATAN</span>
+          <span class="text-accent text-sm">💎</span>
+        </div>
+        <div class="font-head font-extrabold text-2xl tracking-tight text-white mb-1 tabular">${IDR(allOmzet)}</div>
+        <div class="text-xs text-white/40 font-medium">${paidOrders.length} total pesanan</div>
       </div>
-      <div class="card rounded-xl p-3 border border-black/5">
-        <div class="text-xs text-ink/40">Pending</div>
-        <div class="font-head font-extrabold tabular text-sm mt-1">${pendingOrders.length}</div>
-        <div class="text-[11px] text-ink/40 mt-0.5">transfer menunggu</div>
+
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="flex items-center justify-between text-white/40 text-xs font-medium mb-3">
+          <span>PERLU DIKONFIRMASI</span>
+          <span class="text-warn text-sm">⏳</span>
+        </div>
+        <div class="font-head font-extrabold text-2xl tracking-tight text-warn mb-1 tabular">${pendingOrders.length}</div>
+        <div class="text-xs text-white/40 font-medium">Menunggu pembayaran/transfer</div>
       </div>
-      <div class="card rounded-xl p-3 border border-black/5">
-        <div class="text-xs text-ink/40">Stok</div>
-        <div class="font-head font-extrabold tabular text-sm mt-1">${totalStok} unit</div>
-        <div class="text-[11px] text-ink/40 mt-0.5">${totalSku} SKU</div>
+
+      <div class="card bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl p-5 border-white/5">
+        <div class="flex items-center justify-between text-white/40 text-xs font-medium mb-3">
+          <span>TOTAL STOK FISIK</span>
+          <span class="text-white/40 text-sm">📦</span>
+        </div>
+        <div class="font-head font-extrabold text-2xl tracking-tight text-white mb-1 tabular">${totalStok}</div>
+        <div class="text-xs text-white/40 font-medium">${totalSku} varian produk terdaftar</div>
       </div>
     </div>
 
-    <div class="card rounded-xl p-4 border border-black/5 mb-4">
-      <div class="text-sm font-bold mb-3">7 Hari Terakhir</div>
-      <div class="flex items-end gap-1.5 h-24">
-        ${days.map(d=>`<div class="flex-1 flex flex-col items-center gap-1">
-          <div class="w-full rounded bg-accent" style="height:${Math.round((d.val/maxDayVal)*64)+4}px" title="${IDR(d.val)}"></div>
-          <span class="text-[10px] text-ink/40">${d.label}</span>
-        </div>`).join('')}
+    <!-- Revenue Graph -->
+    <div class="card rounded-2xl p-5 border-white/5 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-sm font-bold">Tren Penjualan</div>
+          <div class="text-xs text-white/40">Grafik 7 hari terakhir</div>
+        </div>
+      </div>
+      <div class="flex items-end gap-3 h-36 pt-4 border-t border-white/5">
+        ${days.map(d=>`
+          <div class="flex-1 flex flex-col items-center gap-2 group">
+            <div class="w-full bg-dark-800 group-hover:bg-accent/20 rounded-xl h-full flex items-end p-1 transition-colors">
+              <div class="w-full bg-accent rounded-lg transition-all duration-500 shadow-lg shadow-accent/20" style="height:${Math.round((d.val/maxDayVal)*100)}%" title="${IDR(d.val)}"></div>
+            </div>
+            <span class="text-[11px] text-white/40 font-medium">${d.label}</span>
+          </div>
+        `).join('')}
       </div>
     </div>
 
-    <div class="grid sm:grid-cols-2 gap-4">
-      <div class="card rounded-xl p-4 border border-black/5">
-        <div class="text-sm font-bold mb-3">Produk Terlaris</div>
-        ${topProducts.length ? topProducts.map(([name,qty],i)=>`
-          <div class="flex items-center justify-between py-1.5 border-b border-black/5 last:border-0">
-            <span class="text-sm truncate mr-3">${i+1}. ${name}</span>
-            <span class="text-sm font-bold tabular shrink-0">${qty} terjual</span>
-          </div>
-        `).join('') : `<div class="text-sm text-ink/40 py-4 text-center">Belum ada penjualan lunas.</div>`}
+    <!-- Split Panels: Best Sellers & Low Stock -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="card rounded-2xl p-5 border-white/5">
+        <div class="text-sm font-bold mb-4">Produk Paling Laris</div>
+        <div class="space-y-3">
+          ${topProducts.length ? topProducts.map(([name,qty],i)=>`
+            <div class="flex items-center justify-between p-3 bg-dark-800 rounded-xl border border-white/5">
+              <div class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full bg-accent/10 text-accent font-bold text-xs flex items-center justify-center">${i+1}</span>
+                <span class="text-sm font-medium">${name}</span>
+              </div>
+              <span class="text-xs font-bold text-accent tabular">${qty} Terjual</span>
+            </div>
+          `).join('') : `<div class="text-sm text-white/30 py-8 text-center">Belum ada transaksi.</div>`}
+        </div>
       </div>
-      <div class="card rounded-xl p-4 border border-black/5">
-        <div class="text-sm font-bold mb-3">Stok Menipis (≤ 5)</div>
-        ${lowStock.length ? lowStock.map(p=>`
-          <div class="flex items-center justify-between py-1.5 border-b border-black/5 last:border-0">
-            <span class="text-sm truncate mr-3">${p.name}</span>
-            <span class="text-xs px-2 py-0.5 rounded ${p.stock<=0?'bg-danger text-white':'bg-warn/15 text-warn'} tabular font-bold">${p.stock} stok</span>
-          </div>
-        `).join('') : `<div class="text-sm text-accent py-4 text-center">Semua stok aman ✓</div>`}
+
+      <div class="card rounded-2xl p-5 border-white/5">
+        <div class="text-sm font-bold mb-4">Peringatan Stok Tipis (≤ 5)</div>
+        <div class="space-y-3">
+          ${lowStock.length ? lowStock.map(p=>`
+            <div class="flex items-center justify-between p-3 bg-dark-800 rounded-xl border border-white/5">
+              <span class="text-sm font-medium">${p.name}</span>
+              <span class="text-xs px-2.5 py-1 rounded-lg ${p.stock<=0?'bg-danger/20 text-danger':'bg-warn/20 text-warn'} font-bold tabular">Sisa ${p.stock}</span>
+            </div>
+          `).join('') : `<div class="text-sm text-accent py-8 text-center font-medium">✓ Semua stok tercukupi dengan baik</div>`}
+        </div>
       </div>
     </div>
   `;
@@ -378,12 +413,53 @@ function renderKasir(){
   const cartItems = Object.entries(cart).filter(([id,qty])=>qty>0);
   const total = cartItems.reduce((s,[id,qty])=> s + (products[id]?.price||0)*qty, 0);
 
+  // Remove old floating cart if any
+  const old = document.getElementById('cartBar'); if (old) old.remove();
+
   el.innerHTML = `
-    <div class="mb-3 flex gap-2">
-      <input id="kasirSearch" type="text" placeholder="Cari produk…" class="flex-1 border rounded-lg px-3 py-2.5 text-sm">
-      <button id="btnSelectCustomer" class="bg-accent text-white text-sm font-medium rounded-lg px-3 py-2">👤 ${selectedCustomer ? customers.find(c=>c._id===selectedCustomer)?.name : 'Pilih Pelanggan'}</button>
+    <div class="h-full flex flex-col lg:flex-row gap-6">
+      <!-- Left: Products Grid -->
+      <div class="flex-1 flex flex-col min-h-0">
+        <div class="mb-4 flex gap-3">
+          <input id="kasirSearch" type="text" placeholder="Cari nama produk…" class="flex-1 bg-dark-800 border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none">
+          <button id="btnSelectCustomer" class="bg-dark-800 border border-white/5 hover:border-accent text-sm font-medium rounded-xl px-4 py-3 transition-colors">👤 ${selectedCustomer ? customers.find(c=>c._id===selectedCustomer)?.name : 'Tamu'}</button>
+        </div>
+        <div id="kasirGrid" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 content-start pr-2"></div>
+      </div>
+
+      <!-- Right: Permanent Cart Panel -->
+      <div class="w-full lg:w-96 card rounded-2xl flex flex-col h-auto lg:h-full border border-white/5 p-4 shadow-2xl">
+        <div class="text-sm font-bold pb-3 border-b border-white/5 flex items-center justify-between">
+          <span>Current Order</span>
+          <span class="text-xs text-white/40">${cartItems.reduce((s,[,q])=>s+q,0)} items</span>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto my-3 space-y-2 pr-1">
+          ${cartItems.length ? cartItems.map(([id,qty])=>{
+            const p = products[id];
+            return `<div class="bg-dark-800 rounded-xl p-3 border border-white/5 flex items-center justify-between text-sm">
+              <div class="flex-1 truncate mr-2">
+                <div class="font-medium truncate">${p.name}</div>
+                <div class="text-xs text-white/40 tabular">${IDR(p.price)}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button data-dec="${id}" class="w-7 h-7 rounded-lg bg-dark-700 hover:bg-white/10 flex items-center justify-center text-xs">–</button>
+                <span class="w-5 text-center tabular font-bold">${qty}</span>
+                <button data-inc="${id}" class="w-7 h-7 rounded-lg bg-dark-700 hover:bg-white/10 flex items-center justify-center text-xs">+</button>
+              </div>
+            </div>`;
+          }).join('') : `<div class="text-sm text-white/30 text-center py-20">Keranjang kosong</div>`}
+        </div>
+
+        <div class="pt-3 border-t border-white/5 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-white/50">Total</span>
+            <span class="font-head font-extrabold text-xl tabular text-accent">${IDR(total)}</span>
+          </div>
+          <button id="btnCheckout" class="w-full bg-accent text-black font-bold rounded-xl py-3.5 text-sm shadow-lg shadow-accent/20 disabled:opacity-40 transition-all" ${cartItems.length?'':'disabled'}>Process Payment</button>
+        </div>
+      </div>
     </div>
-    <div id="kasirGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-28"></div>
   `;
 
   document.getElementById('btnSelectCustomer').onclick = openSelectCustomerModal;
@@ -393,11 +469,14 @@ function renderKasir(){
     const f = filter.trim().toLowerCase();
     const list = items.filter(p=> !f || p.name.toLowerCase().includes(f));
     grid.innerHTML = list.map(p=>`
-      <button data-add="${p.id}" class="prodcard card rounded-xl p-3 text-left border border-black/5 ${((p.stock||0)<=0)?'opacity-40':''}">
-        <div class="text-sm font-semibold leading-snug">${p.name}</div>
-        <div class="text-xs text-ink/40 mt-0.5">Stok ${p.stock||0}</div>
-        <div class="font-head font-bold tabular mt-1.5">${IDR(p.price)}</div>
-      </button>`).join('') || `<div class="col-span-full text-center text-sm text-ink/40 py-10">Belum ada produk.</div>`;
+      <button data-add="${p.id}" class="prodcard card rounded-xl p-4 text-left flex flex-col justify-between ${((p.stock||0)<=0)?'opacity-30 pointer-events-none':''}">
+        <div>
+          <div class="text-sm font-semibold leading-snug line-clamp-2">${p.name}</div>
+          <div class="text-[11px] text-white/40 mt-1">Stok ${p.stock||0}</div>
+        </div>
+        <div class="font-head font-bold text-accent tabular mt-4">${IDR(p.price)}</div>
+      </button>`).join('') || `<div class="col-span-full text-center text-sm text-white/30 py-10">Produk tidak ditemukan.</div>`;
+    
     grid.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=>{
       const id = b.dataset.add;
       const p = products[id];
@@ -409,41 +488,12 @@ function renderKasir(){
   drawGrid();
   document.getElementById('kasirSearch').oninput = (e)=> drawGrid(e.target.value);
 
-  const old = document.getElementById('cartBar'); if (old) old.remove();
-  const bar = document.createElement('div');
-  bar.id = 'cartBar';
-  bar.className = 'fixed left-0 right-0 bottom-0 z-30';
-  bar.innerHTML = `
-    <div class="max-w-5xl mx-auto px-4 pb-4">
-      <div class="card rounded-2xl shadow-xl border border-black/10 p-3">
-        ${cartItems.length ? `
-        <div class="max-h-40 overflow-y-auto mb-2 space-y-1.5">
-          ${cartItems.map(([id,qty])=>{
-            const p = products[id];
-            return `<div class="flex items-center justify-between text-sm">
-              <div class="flex-1 truncate mr-2">${p.name}</div>
-              <div class="flex items-center gap-2">
-                <button data-dec="${id}" class="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10">–</button>
-                <span class="w-5 text-center tabular">${qty}</span>
-                <button data-inc="${id}" class="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10">+</button>
-                <span class="w-20 text-right tabular font-medium">${IDR(p.price*qty)}</span>
-              </div>
-            </div>`;
-          }).join('')}
-        </div>` : `<div class="text-sm text-ink/40 text-center py-3">Keranjang kosong</div>`}
-        <div class="flex items-center justify-between pt-2 border-t border-black/5">
-          <div class="font-head font-bold tabular">${IDR(total)}</div>
-          <button id="btnCheckout" class="bg-accent text-white font-semibold rounded-lg px-5 py-2.5 disabled:opacity-40" ${cartItems.length?'':'disabled'}>Bayar</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(bar);
-  bar.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{
+  el.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.inc; const p=products[id];
     if ((p.stock||0) <= (cart[id]||0)) { toast('Stok tidak cukup','error'); return; }
     cart[id]=(cart[id]||0)+1; renderKasir();
   });
-  bar.querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>{
+  el.querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.dec; cart[id]=Math.max(0,(cart[id]||0)-1); renderKasir();
   });
   document.getElementById('btnCheckout').onclick = openPaymentModal;
