@@ -61,4 +61,37 @@ router.delete('/customers/:id', async (req, res) => {
   }
 });
 
+// Lookup customer by phone — public (untuk portal pelanggan web)
+router.get('/customers/lookup/:phone', async (req, res) => {
+  try {
+    const phone = req.params.phone.replace(/[^0-9]/g, '');
+    const customer = await Customer.findOne({ phone });
+    if (!customer) return res.status(404).json({ error: 'Pelanggan tidak ditemukan' });
+
+    // Ambil order pelanggan (public, hanya info dasar)
+    const Order = require('../models/Order');
+    const orders = await Order.find({ customerId: customer._id }).sort({ createdAt: -1 }).limit(20);
+
+    res.json({
+      name: customer.name,
+      phone: customer.phone,
+      points: customer.points || 0,
+      totalSpent: customer.totalSpent || 0,
+      transactionCount: customer.transactionCount || 0,
+      orders: orders.map(o => ({
+        orderId: o.orderId,
+        items: o.items.map(i => ({ name: i.productName, qty: i.quantity, price: i.price })),
+        totalAmount: o.totalAmount,
+        paymentStatus: o.paymentStatus,
+        orderStatus: o.orderStatus,
+        progress: o.progress,
+        source: o.source,
+        createdAt: o.createdAt
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

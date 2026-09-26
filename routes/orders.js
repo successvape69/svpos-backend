@@ -5,6 +5,9 @@ const Customer = require('../models/Customer');
 const Product = require('../models/Product');
 const authMiddleware = require('../middleware/auth');
 
+// Rumus reward: 1 poin per Rp 10.000 belanja (lunas)
+function calcPoints(amount) { return Math.floor((amount || 0) / 10000); }
+
 // Create order (POS atau web) — publik agar toko online bisa order langsung
 router.post('/orders', async (req, res) => {
   try {
@@ -62,14 +65,13 @@ router.post('/orders', async (req, res) => {
       await Product.findByIdAndUpdate(it.productId, { $inc: { stock: -it.quantity } });
     }
 
-    // Update customer: piutang vs lunas
-    // pending = piutang (outstanding), paid = totalSpent
-    // ponytail: hutang parsial (DP) belum ada; add when butuh `paidAmount` field
+    // Update customer: piutang vs lunas + reward points
     if (customerId) {
+      const pts = calcPoints(totalAmount);
       if (validPay === 'pending') {
         await Customer.findByIdAndUpdate(customerId, { $inc: { outstanding: totalAmount, transactionCount: 1 }, lastTransaction: new Date() });
       } else if (validPay === 'paid') {
-        await Customer.findByIdAndUpdate(customerId, { $inc: { totalSpent: totalAmount, transactionCount: 1 }, lastTransaction: new Date() });
+        await Customer.findByIdAndUpdate(customerId, { $inc: { totalSpent: totalAmount, transactionCount: 1, points: pts }, lastTransaction: new Date() });
       } else {
         await Customer.findByIdAndUpdate(customerId, { $inc: { transactionCount: 1 }, lastTransaction: new Date() });
       }
@@ -129,10 +131,17 @@ router.patch('/orders/:orderId', authMiddleware, async (req, res) => {
       }
     }
 
-    // pelunasan piutang: pending -> paid (settlement)
+    // pelunasan piutang: pending -> paid (settlement) + tambah poin
     const settlePiutang = prev.paymentStatus === 'pending' && paymentStatus === 'paid' && !nowCancelled;
     if (settlePiutang && prev.customerId) {
-      await Customer.findByIdAndUpdate(prev.customerId, { $inc: { outstanding: -prev.totalAmount, totalSpent: prev.totalAmount } });
+      const pts = calcPoints(prev.totalAmount);
+      await Customer.findByIdAndUpdate(prev.customerId, { $inc: { outstanding: -prev.totalAmount, totalSpent: prev.totalAmount, points: pts } });
+    }
+
+    // cancel: potong poin jika order sudah paid
+    if (nowCancelled && prev.paymentStatus === 'paid' && prev.customerId) {
+      const pts = calcPoints(prev.totalAmount);
+      await Customer.findByIdAndUpdate(prev.customerId, { $inc: { points: -pts } });
     }
 
     const update = { updatedAt: new Date() };
@@ -177,8 +186,9 @@ router.post('/orders/:orderId/return', authMiddleware, async (req, res) => {
     if (fullReturn) {
       setFields.orderStatus = 'returned';
       if (order.customerId) {
+        const pts = calcPoints(order.totalAmount);
         if (order.paymentStatus === 'paid') {
-          await Customer.findByIdAndUpdate(order.customerId, { $inc: { totalSpent: -order.totalAmount, transactionCount: -1 } });
+          await Customer.findByIdAndUpdate(order.customerId, { $inc: { totalSpent: -order.totalAmount, transactionCount: -1, points: -pts } });
         } else if (order.paymentStatus === 'pending') {
           await Customer.findByIdAndUpdate(order.customerId, { $inc: { outstanding: -order.totalAmount, transactionCount: -1 } });
         } else {
