@@ -54,7 +54,7 @@ router.post('/orders', async (req, res) => {
       try {
         const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'svpos_secret');
-        const openShift = await Shift.findOne({ cashierId: decoded._id || decoded.id, status: 'open' });
+        const openShift = await Shift.findOne({ cashierId: decoded.id || decoded._id, status: 'open' });
         if (openShift) shiftId = openShift._id;
       } catch(e) { /* no shift, skip */ }
     }

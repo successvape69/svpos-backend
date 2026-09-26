@@ -8,7 +8,7 @@ const authMiddleware = require('../middleware/auth');
 // Get all shifts (admin sees all, kasir sees own)
 router.get('/shifts', authMiddleware, async (req, res) => {
   try {
-    const filter = req.user.role === 'admin' ? {} : { cashierId: req.user._id };
+    const filter = req.user.role === 'admin' ? {} : { cashierId: req.user.id || req.user._id };
     const shifts = await Shift.find(filter).sort({ openedAt: -1 }).limit(100);
     res.json(shifts);
   } catch (err) {
@@ -19,7 +19,7 @@ router.get('/shifts', authMiddleware, async (req, res) => {
 // Get current open shift for logged-in cashier (before /:id)
 router.get('/shifts/current', authMiddleware, async (req, res) => {
   try {
-    const shift = await Shift.findOne({ cashierId: req.user._id, status: 'open' });
+    const shift = await Shift.findOne({ cashierId: req.user.id || req.user._id, status: 'open' });
     if (!shift) return res.json({ shift: null });
     res.json({ shift });
   } catch (err) {
@@ -31,12 +31,13 @@ router.get('/shifts/current', authMiddleware, async (req, res) => {
 
 router.post('/shifts/open', authMiddleware, async (req, res) => {
   try {
-    const existing = await Shift.findOne({ cashierId: req.user._id, status: 'open' });
+    const cashierId = req.user.id || req.user._id;
+    const existing = await Shift.findOne({ cashierId, status: 'open' });
     if (existing) return res.status(400).json({ error: 'Shift sudah dibuka. Tutup dulu shift lama.' });
 
     const openedCash = Number(req.body.openedCash || 0);
     const shift = new Shift({
-      cashierId: req.user._id,
+      cashierId,
       cashierName: req.user.username,
       openedCash,
       expectedCash: openedCash
@@ -55,7 +56,7 @@ router.patch('/shifts/close/:id', authMiddleware, async (req, res) => {
     const shift = await Shift.findById(req.params.id);
     if (!shift) return res.status(404).json({ error: 'Shift tidak ditemukan' });
     if (shift.status === 'closed') return res.status(400).json({ error: 'Shift sudah ditutup' });
-    if (String(shift.cashierId) !== String(req.user._id) && req.user.role !== 'admin') {
+    if (String(shift.cashierId) !== String(req.user.id || req.user._id) && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Bukan shift kamu' });
     }
 
