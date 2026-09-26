@@ -3,9 +3,10 @@ const router = express.Router();
 const Product = require('../models/Product');
 const StockOpname = require('../models/StockOpname');
 
-// POST opname — body: items: [{productId, physicalStock}], createdBy optional
+// POST opname — body: items: [{productId, physicalStock}], createdBy optional (admin only)
 router.post('/stock-opname', async (req, res) => {
   try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const { items, createdBy } = req.body;
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items required' });
 
@@ -23,7 +24,6 @@ router.post('/stock-opname', async (req, res) => {
         physicalStock,
         diff
       });
-      // apply physical as new stock
       await Product.findByIdAndUpdate(prod._id, { stock: physicalStock });
     }
 
@@ -42,9 +42,10 @@ router.post('/stock-opname', async (req, res) => {
   }
 });
 
-// GET history
+// GET history (admin only)
 router.get('/stock-opname', async (req, res) => {
   try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const list = await StockOpname.find().sort({ createdAt: -1 }).limit(50);
     res.json(list);
   } catch (err) {

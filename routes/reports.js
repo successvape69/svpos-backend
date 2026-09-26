@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 
-// GET /reports — statistik penjualan
+// GET /reports — statistik penjualan (admin only)
 router.get('/reports', async (req, res) => {
   try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const { start, end } = req.query;
     const filter = { orderStatus: 'completed', paymentStatus: 'paid' };
 
@@ -40,9 +41,10 @@ router.get('/reports', async (req, res) => {
   }
 });
 
-// GET /reports/export — export CSV
+// GET /reports/export — export CSV (admin only)
 router.get('/reports/export', async (req, res) => {
   try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const { start, end } = req.query;
     const filter = { orderStatus: { $ne: 'cancelled' } };
     if (start || end) {

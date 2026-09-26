@@ -1087,7 +1087,7 @@ async function renderUsers(){
 
   el.querySelectorAll('[data-role]').forEach(sel => sel.onchange = async () => {
     try {
-      await apiCall('/auth/users/' + sel.dataset.role, { method: 'PATCH', body: JSON.stringify({ role: sel.value }) });
+      await apiCall(`/auth/users/${sel.dataset.role}`, { method: 'PATCH', body: JSON.stringify({ role: sel.value }) });
       toast('Role diperbarui');
       renderUsers();
     } catch(e){ toast('Gagal','error'); }
@@ -1096,7 +1096,7 @@ async function renderUsers(){
   el.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     if (!confirm(`Hapus user "${b.dataset.name}"?`)) return;
     try {
-      await apiCall('/auth/users/' + b.dataset.del, { method: 'DELETE' });
+      await apiCall(`/auth/users/${b.dataset.del}`, { method: 'DELETE' });
       toast('User dihapus');
       renderUsers();
     } catch(e){ toast(e.message || 'Gagal','error'); }
