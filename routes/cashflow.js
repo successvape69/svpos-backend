@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Cashflow = require('../models/Cashflow');
 const Order = require('../models/Order');
+const authMiddleware = require('../middleware/auth');
 
 function calcHPP(orders) {
   let total = 0;
@@ -21,7 +22,7 @@ function calcHPP(orders) {
 //  labaKotor = omzet(setelah diskon) - HPP
 //  labaBersih = labaKotor - biayaOperasional
 // -> restock HANYA potong modal, JANGAN potong laba. Operasional potong laba, jangan potong modal.
-router.get('/cashflow/summary', async (req, res) => {
+router.get('/cashflow/summary', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
 
@@ -75,7 +76,7 @@ router.get('/cashflow/summary', async (req, res) => {
 });
 
 // POST /cashflow — catat modal, pengeluaran, atau restock
-router.post('/cashflow', async (req, res) => {
+router.post('/cashflow', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const { type, amount, description } = req.body;

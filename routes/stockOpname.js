@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const StockOpname = require('../models/StockOpname');
+const authMiddleware = require('../middleware/auth');
 
 // POST opname — body: items: [{productId, physicalStock}], createdBy optional (admin only)
-router.post('/stock-opname', async (req, res) => {
+router.post('/stock-opname', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const { items, createdBy } = req.body;
@@ -43,7 +44,7 @@ router.post('/stock-opname', async (req, res) => {
 });
 
 // GET history (admin only)
-router.get('/stock-opname', async (req, res) => {
+router.get('/stock-opname', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const list = await StockOpname.find().sort({ createdAt: -1 }).limit(50);
