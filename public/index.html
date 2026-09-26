@@ -99,7 +99,8 @@
 
     <nav class="px-2 border-b border-black/5 overflow-x-auto">
       <div class="flex gap-1 w-max px-2">
-        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 text-accent border-accent" data-tab="kasir">Kasir</button>
+        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 text-accent border-accent" data-tab="dashboard">Dashboard</button>
+        <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="kasir">Kasir</button>
         <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="products">Produk</button>
         <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="orders">Riwayat Order</button>
         <button class="tabbtn navbtn px-3 py-3 text-sm font-medium border-b-2 border-transparent text-ink/50" data-tab="customers">Pelanggan</button>
@@ -107,7 +108,8 @@
     </nav>
 
     <main class="flex-1 px-4 py-4 pb-24">
-      <section id="view-kasir"></section>
+      <section id="view-dashboard" class="hidden"></section>
+      <section id="view-kasir" class="hidden"></section>
       <section id="view-products" class="hidden"></section>
       <section id="view-orders" class="hidden"></section>
       <section id="view-customers" class="hidden"></section>
@@ -152,7 +154,7 @@ let customers = [];
 let orders = [];
 let selectedCustomer = null;
 let cart = {};
-let activeTab = 'kasir';
+let activeTab = 'dashboard';
 
 let products = {};
 
@@ -261,8 +263,13 @@ document.querySelectorAll('.tabbtn').forEach(b => {
 function render(){
   if (!currentUser) return;
   document.getElementById('currentUser').textContent = currentUser.username;
+  // cart bar hanya di kasir
+  if (activeTab !== 'kasir'){ const old=document.getElementById('cartBar'); if(old) old.remove(); }
   document.querySelectorAll('main section').forEach(s=> s.classList.add('hidden'));
-  if (activeTab === 'kasir'){
+  if (activeTab === 'dashboard'){
+    document.getElementById('view-dashboard').classList.remove('hidden');
+    renderDashboard();
+  } else if (activeTab === 'kasir'){
     document.getElementById('view-kasir').classList.remove('hidden');
     renderKasir();
   } else if (activeTab === 'products'){
@@ -275,6 +282,93 @@ function render(){
     document.getElementById('view-customers').classList.remove('hidden');
     renderCustomers();
   }
+}
+
+// ===================== DASHBOARD =====================
+function isToday(ts){
+  const d = new Date(ts);
+  const now = new Date();
+  return d.getDate()===now.getDate() && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+}
+
+function renderDashboard(){
+  const el = document.getElementById('view-dashboard');
+  const paidOrders = orders.filter(o => o.paymentStatus==='paid');
+  const todayOrders = paidOrders.filter(o => isToday(o.createdAt));
+  const pendingOrders = orders.filter(o => o.paymentStatus==='pending' && o.orderStatus!=='cancelled');
+  const todayOmzet = todayOrders.reduce((s,o)=>s+(o.totalAmount||0),0);
+  const allOmzet = paidOrders.reduce((s,o)=>s+(o.totalAmount||0),0);
+  const totalStok = Object.values(products).reduce((s,p)=>s+(p.stock||0),0);
+  const totalSku = Object.values(products).length;
+
+  // Top products (by qty sold, from paid orders)
+  const qtyByProd = {};
+  paidOrders.forEach(o => (o.items||[]).forEach(it => { qtyByProd[it.productName] = (qtyByProd[it.productName]||0) + (it.quantity||0); }));
+  const topProducts = Object.entries(qtyByProd).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Low stock
+  const lowStock = Object.values(products).filter(p => (p.stock||0) <= 5).sort((a,b)=>a.stock-b.stock);
+
+  // Last 7 days omzet
+  const days = [];
+  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0); const next=new Date(d); next.setDate(d.getDate()+1); const dayOmzet = paidOrders.filter(o=>{ const t=new Date(o.createdAt); return t>=d && t<next; }).reduce((s,o)=>s+(o.totalAmount||0),0); days.push({label:d.toLocaleDateString('id-ID',{weekday:'short'}), val:dayOmzet}); }
+  const maxDayVal = Math.max(1, ...days.map(d=>d.val));
+
+  el.innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div class="card rounded-xl p-3 border border-black/5">
+        <div class="text-xs text-ink/40">Omzet Hari Ini</div>
+        <div class="font-head font-extrabold tabular text-sm mt-1">${IDR(todayOmzet)}</div>
+        <div class="text-[11px] text-ink/40 mt-0.5">${todayOrders.length} trx lunas</div>
+      </div>
+      <div class="card rounded-xl p-3 border border-black/5">
+        <div class="text-xs text-ink/40">Total Omzet (lunas)</div>
+        <div class="font-head font-extrabold tabular text-sm mt-1">${IDR(allOmzet)}</div>
+        <div class="text-[11px] text-ink/40 mt-0.5">${paidOrders.length} order</div>
+      </div>
+      <div class="card rounded-xl p-3 border border-black/5">
+        <div class="text-xs text-ink/40">Pending</div>
+        <div class="font-head font-extrabold tabular text-sm mt-1">${pendingOrders.length}</div>
+        <div class="text-[11px] text-ink/40 mt-0.5">transfer menunggu</div>
+      </div>
+      <div class="card rounded-xl p-3 border border-black/5">
+        <div class="text-xs text-ink/40">Stok</div>
+        <div class="font-head font-extrabold tabular text-sm mt-1">${totalStok} unit</div>
+        <div class="text-[11px] text-ink/40 mt-0.5">${totalSku} SKU</div>
+      </div>
+    </div>
+
+    <div class="card rounded-xl p-4 border border-black/5 mb-4">
+      <div class="text-sm font-bold mb-3">7 Hari Terakhir</div>
+      <div class="flex items-end gap-1.5 h-24">
+        ${days.map(d=>`<div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-full rounded bg-accent" style="height:${Math.round((d.val/maxDayVal)*64)+4}px" title="${IDR(d.val)}"></div>
+          <span class="text-[10px] text-ink/40">${d.label}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="card rounded-xl p-4 border border-black/5">
+        <div class="text-sm font-bold mb-3">Produk Terlaris</div>
+        ${topProducts.length ? topProducts.map(([name,qty],i)=>`
+          <div class="flex items-center justify-between py-1.5 border-b border-black/5 last:border-0">
+            <span class="text-sm truncate mr-3">${i+1}. ${name}</span>
+            <span class="text-sm font-bold tabular shrink-0">${qty} terjual</span>
+          </div>
+        `).join('') : `<div class="text-sm text-ink/40 py-4 text-center">Belum ada penjualan lunas.</div>`}
+      </div>
+      <div class="card rounded-xl p-4 border border-black/5">
+        <div class="text-sm font-bold mb-3">Stok Menipis (≤ 5)</div>
+        ${lowStock.length ? lowStock.map(p=>`
+          <div class="flex items-center justify-between py-1.5 border-b border-black/5 last:border-0">
+            <span class="text-sm truncate mr-3">${p.name}</span>
+            <span class="text-xs px-2 py-0.5 rounded ${p.stock<=0?'bg-danger text-white':'bg-warn/15 text-warn'} tabular font-bold">${p.stock} stok</span>
+          </div>
+        `).join('') : `<div class="text-sm text-accent py-4 text-center">Semua stok aman ✓</div>`}
+      </div>
+    </div>
+  `;
 }
 
 // ===================== KASIR =====================
