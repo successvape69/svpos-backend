@@ -2,13 +2,20 @@ const express = require('express');
 const router = express.Router();
 const Cashflow = require('../models/Cashflow');
 const Order = require('../models/Order');
+const Product = require('../models/Product');
 const authMiddleware = require('../middleware/auth');
 
-function calcHPP(orders) {
+// Hitung HPP pakai snapshot; fallback ke harga beli produk sekarang bila snapshot kosong
+async function calcHPP(orders) {
+  const allProds = await Product.find({});
+  const prodMap = {};
+  allProds.forEach(p => { prodMap[p._id] = p.purchasePrice || 0; });
+
   let total = 0;
   for (const o of orders) {
     for (const it of (o.items || [])) {
-      total += (it.purchasePrice || 0) * (it.quantity || 0);
+      const hpp = it.purchasePrice > 0 ? it.purchasePrice : (prodMap[it.productId] || 0);
+      total += hpp * (it.quantity || 0);
     }
   }
   return total;
@@ -42,7 +49,7 @@ router.get('/cashflow/summary', authMiddleware, async (req, res) => {
     const totalSales = paidOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
     const totalOriginal = paidOrders.reduce((s, o) => s + (o.originalTotal || o.totalAmount || 0), 0);
     const totalDiscount = Math.max(totalOriginal - totalSales, 0);
-    const totalHPP = calcHPP(paidOrders);
+    const totalHPP = await calcHPP(paidOrders);
 
     const grossProfit = totalSales - totalHPP;
     const netProfit = grossProfit - expenses;
