@@ -64,6 +64,7 @@
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="dashboard" title="Dashboard">📊</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="kasir" title="Kasir">🛒</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="products" title="Produk">📦</button>
+      <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="opname" title="Opname">📋</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="orders" title="Order">📜</button>
       <button class="tabbtn w-12 h-12 flex items-center justify-center navbtn text-white/40 hover:text-white" data-tab="customers" title="Customer">👥</button>
     </div>
@@ -112,6 +113,7 @@
         <section id="view-dashboard" class="hidden"></section>
         <section id="view-kasir" class="hidden h-full"></section>
         <section id="view-products" class="hidden"></section>
+        <section id="view-opname" class="hidden"></section>
         <section id="view-orders" class="hidden"></section>
         <section id="view-customers" class="hidden"></section>
       </main>
@@ -279,13 +281,14 @@ function render(){
   
   const views = {
     dashboard: 'view-dashboard', kasir: 'view-kasir', products: 'view-products',
-    orders: 'view-orders', customers: 'view-customers'
+    opname: 'view-opname', orders: 'view-orders', customers: 'view-customers'
   };
   document.getElementById(views[activeTab]).classList.remove('hidden');
   
   if (activeTab === 'dashboard') renderDashboard();
   else if (activeTab === 'kasir') renderKasir();
   else if (activeTab === 'products') renderProducts();
+  else if (activeTab === 'opname') renderOpname();
   else if (activeTab === 'orders') renderOrders();
   else if (activeTab === 'customers') renderCustomers();
 }
@@ -769,6 +772,102 @@ function openCustomerModal(customerId){
       toast('Customer disimpan');
       render();
     } catch(e){ toast('Gagal menyimpan','error'); }
+  };
+}
+
+// ===================== STOCK OPNAME =====================
+let opnameData = {};
+
+function renderOpname(){
+  const el = document.getElementById('view-opname');
+  const items = Object.values(products);
+  
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="font-head font-bold text-xl">Stock Opname</div>
+        <div class="text-xs text-white/40">Sesuaikan stok sistem dengan stok fisik</div>
+      </div>
+      <div class="flex gap-2">
+        <label class="bg-dark-700 border border-white/10 hover:border-accent text-white font-bold text-[11px] rounded-xl px-4 py-2.5 cursor-pointer transition-colors">
+          📤 UPLOAD CSV
+          <input type="file" id="csvUpload" class="hidden" accept=".csv">
+        </label>
+        <button id="btnSaveOpname" class="bg-accent text-black font-bold text-xs rounded-xl px-6 py-2.5 shadow-lg shadow-accent/20">SIMPAN SEMUA</button>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl overflow-hidden border-white/5">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-dark-800 text-white/40 text-[10px] uppercase tracking-widest font-bold">
+          <tr>
+            <th class="px-4 py-3">Produk</th>
+            <th class="px-4 py-3 text-right">Stok Sistem</th>
+            <th class="px-4 py-3 text-right">Stok Fisik</th>
+            <th class="px-4 py-3 text-right">Selisih</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          ${items.map(p => {
+            const physical = opnameData[p.id] !== undefined ? opnameData[p.id] : p.stock;
+            const diff = physical - p.stock;
+            return `
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="px-4 py-4 font-medium">${p.name}</td>
+              <td class="px-4 py-4 text-right tabular text-white/40">${p.stock}</td>
+              <td class="px-4 py-4 text-right">
+                <input type="number" data-opname-id="${p.id}" value="${physical}" class="w-20 bg-dark-800 border border-white/10 rounded-lg px-2 py-1.5 text-right outline-none focus:border-accent tabular">
+              </td>
+              <td class="px-4 py-4 text-right tabular font-bold ${diff > 0 ? 'text-accent' : diff < 0 ? 'text-danger' : 'text-white/20'}">
+                ${diff > 0 ? '+' : ''}${diff}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  el.querySelectorAll('[data-opname-id]').forEach(input => {
+    input.oninput = (e) => {
+      const id = input.dataset.opnameId;
+      opnameData[id] = parseInt(e.target.value) || 0;
+      renderOpname();
+    };
+  });
+
+  document.getElementById('btnSaveOpname').onclick = async () => {
+    const itemsToSave = Object.entries(opnameData).map(([productId, physicalStock]) => ({ productId, physicalStock }));
+    if (!itemsToSave.length) { toast('Tidak ada perubahan'); return; }
+    if (!confirm(`Simpan ${itemsToSave.length} perubahan stok?`)) return;
+    
+    try {
+      await apiCall('/stock-opname', { method: 'POST', body: JSON.stringify({ items: itemsToSave, createdBy: currentUser.username }) });
+      opnameData = {};
+      await loadProducts();
+      toast('Stock opname berhasil disimpan');
+      render();
+    } catch(e) { toast('Gagal simpan opname','error'); }
+  };
+
+  document.getElementById('csvUpload').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n');
+      // Format CSV: Nama Produk, Stok Fisik
+      lines.forEach(line => {
+        const [name, stock] = line.split(',');
+        if (!name || isNaN(parseInt(stock))) return;
+        const p = items.find(x => x.name.toLowerCase() === name.trim().toLowerCase());
+        if (p) opnameData[p.id] = parseInt(stock);
+      });
+      renderOpname();
+      toast('CSV diimpor (hanya produk yang cocok)');
+    };
+    reader.readAsText(file);
   };
 }
 
