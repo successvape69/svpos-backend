@@ -20,6 +20,7 @@ const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
 const midtransRoutes = require('./routes/midtrans');
 const stockOpnameRoutes = require('./routes/stockOpname');
+const reportRoutes = require('./routes/reports');
 const authMiddleware = require('./middleware/auth');
 
 app.get('/api/health', (req, res) => {
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/midtrans', midtransRoutes);
 app.use('/api', authMiddleware, orderRoutes);
 app.use('/api', authMiddleware, stockOpnameRoutes);
+app.use('/api', authMiddleware, reportRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', productRoutes);
 
