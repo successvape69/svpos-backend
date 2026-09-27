@@ -60,7 +60,7 @@ router.post('/orders', async (req, res) => {
           const openShift = await Shift.findOne({ cashierId, status: 'open' });
           if (openShift) shiftId = openShift._id;
         }
-      } catch(e) { /* no shift, skip */ }
+      } catch(e) { console.log('SHIFT_DECODE_FAIL:', e.message); /* no shift, skip */ }
     }
 
     const order = new Order({
