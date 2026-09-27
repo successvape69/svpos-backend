@@ -12,7 +12,7 @@ function calcPoints(amount) { return Math.floor((amount || 0) / 10000); }
 // Create order (POS atau web) — publik agar toko online bisa order langsung
 router.post('/orders', async (req, res) => {
   try {
-    const { customerId, items, source, discount = 0, paymentStatus: reqPay='pending', orderStatus: reqOrd='pending', progress: reqProg='antri' } = req.body;
+    const { customerId, items, source, discount = 0, paymentStatus: reqPay='pending', orderStatus: reqOrd='pending', progress: reqProg='antri', shiftId: reqShiftId } = req.body;
 
     if (!Array.isArray(items) || !items.length) {
       return res.status(400).json({ error: 'items wajib diisi' });
@@ -77,7 +77,7 @@ router.post('/orders', async (req, res) => {
       paymentStatus: validPay,
       orderStatus: validOrd,
       progress: validProg,
-      shiftId
+      shiftId: reqShiftId || shiftId
     });
     await order.save();
 
