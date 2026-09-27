@@ -53,9 +53,13 @@ router.post('/orders', async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'svpos_secret');
-        const openShift = await Shift.findOne({ cashierId: decoded.id || decoded._id, status: 'open' });
-        if (openShift) shiftId = openShift._id;
+        const JWT_SECRET = process.env.JWT_SECRET || 'svpos_secret_key_change_me';
+        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), JWT_SECRET);
+        const cashierId = decoded.id || decoded._id;
+        if (cashierId) {
+          const openShift = await Shift.findOne({ cashierId, status: 'open' });
+          if (openShift) shiftId = openShift._id;
+        }
       } catch(e) { /* no shift, skip */ }
     }
 
