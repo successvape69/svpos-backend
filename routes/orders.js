@@ -47,20 +47,23 @@ router.post('/orders', async (req, res) => {
     const disc = Math.min(Math.max(Number(discount) || 0, 0), 100); // clamp 0-100
     const totalAmount = Math.round(originalTotal * (1 - disc / 100));
 
-    // Auto-detect shift aktif kalau ada Authorization header
+    // Auto-detect shift aktif kalau ada Authorization header (ponytail: extract JWT logic ke middleware)
     let shiftId = null;
     const authHeader = req.headers.authorization;
+    console.log('SHIFT_DEBUG_HEADER:', authHeader?.slice(0, 30) || 'NO_AUTH');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const jwt = require('jsonwebtoken');
         const JWT_SECRET = process.env.JWT_SECRET || 'svpos_secret_key_change_me';
         const decoded = jwt.verify(authHeader.replace('Bearer ', ''), JWT_SECRET);
         const cashierId = decoded.id || decoded._id;
+        console.log('SHIFT_DEBUG_DECODED:', decoded.username, 'id=', cashierId);
         if (cashierId) {
-          const openShift = await Shift.findOne({ cashierId, status: 'open' });
+          const openShift = await Shift.findOne({ cashierId: String(cashierId), status: 'open' });
+          console.log('SHIFT_DEBUG_FOUND:', openShift?._id || 'none_for_' + cashierId);
           if (openShift) shiftId = openShift._id;
         }
-      } catch(e) { console.log('SHIFT_DECODE_FAIL:', e.message); /* no shift, skip */ }
+      } catch(e) { console.log('SHIFT_DECODE_FAIL:', e.message); }
     }
 
     const order = new Order({
